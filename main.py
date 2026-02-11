@@ -1,9 +1,10 @@
+import os, math, re, PyPDF2, sqlite3, json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 from typing import List, Optional
-import uvicorn, os, math, re, PyPDF2, sqlite3, json
+import uvicorn
 from fpdf import FPDF
 from datetime import datetime
 import openpyxl
@@ -12,14 +13,15 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- KONFIGURACIJA (SQLite + tvoj folder) ---
-PDF_FOLDER = os.path.join(os.getcwd(), "tehnicki_listovi")
+# --- PAMETNA KONFIGURACIJA (KOČNICE) ---
+PDF_FOLDER_NAME = os.getenv("PDF_FOLDER", "tehnicki_listovi")
+PDF_FOLDER = os.path.join(os.getcwd(), PDF_FOLDER_NAME)
 DB_FILE = "molty.db"
 
-# --- GLOBALNA PROMENLJIVA ZA KESIRANJE ---
+# Globalna promenljiva za keširanje materijala
 CACHED_MATERIALS = [] 
 
-# --- DATABASE INIT (SQLite) ---
+# --- DATABASE INIT ---
 def init_db():
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -30,70 +32,58 @@ def init_db():
                       total_weight REAL, total_cost REAL, data TEXT)''')
         conn.commit()
         conn.close()
-    except: pass
+    except Exception as e:
+        print(f"DB Error: {e}")
 
 init_db()
 
-# --- DATA MOCK ---
+# --- PODACI ---
 CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL KOSICE", "ARCELLOR MITTAL"]
+
+# OVDE JE BILA GREŠKA - SADA JE ZATVORENA ZAGRADA
 METALS_DB = {
     "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
     "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
-# --- ROBUSNO UCITAVANJE (HIBRIDNI DETEKTIV) ---
-CACHED_MATERIALS = [] 
+}
 
+# --- FUNKCIJE ---
 def get_mats():
     global CACHED_MATERIALS
-    
-    # 1. KESIRANJE
     if CACHED_MATERIALS:
         return CACHED_MATERIALS
 
-    # 2. DEFAULT LISTA
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    # 3. DETEKTIV ZA FOLDER
-    possible_folders = ["tds", "tehnicki_listovi", "TDS", "Tehnicki_listovi"]
+    # Detekcija foldera
+    possible_folders = [PDF_FOLDER_NAME, "tds", "tehnicki_listovi", "TDS"]
     found_folder = None
-    cwd = os.getcwd()
-    
-    # Proveri sve varijante
     for f in possible_folders:
-        full_path = os.path.join(cwd, f)
-        if os.path.exists(full_path):
-            found_folder = full_path
-            print(f"BINGO! Folder pronadjen: {full_path}")
+        path = os.path.join(os.getcwd(), f)
+        if os.path.exists(path):
+            found_folder = path
             break
-            
-    # 4. UCITAVANJE (Samo ako smo nasli folder)
-    if found_folder:
-        try:
-            for f in os.listdir(found_folder):
-                if f.lower().endswith(".pdf"):
-                    try:
-                        # Pokusaj citanja
-                        r = PyPDF2.PdfReader(os.path.join(found_folder, f))
-                        txt = r.pages[0].extract_text() or ""
-                        
-                        # Regex za gustinu
-                        dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
-                        den = 2300
-                        if dm:
-                            val = float(dm.group(1).replace(",", "."))
-                            den = val * 1000 if val < 10 else val
-                        
-                        mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
-                    except:
-                        # Fallback na ime fajla
-                        mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
-        except Exception as e:
-            print(f"Greska pri listanju foldera: {e}")
 
-    # 5. SORTIRANJE I KESIRANJE
+    if found_folder:
+        for f in os.listdir(found_folder):
+            if f.lower().endswith(".pdf"):
+                try:
+                    r = PyPDF2.PdfReader(os.path.join(found_folder, f))
+                    txt = r.pages[0].extract_text() or ""
+                    dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
+                    den = 2300
+                    if dm:
+                        val = float(dm.group(1).replace(",", "."))
+                        den = val * 1000 if val < 10 else val
+                    mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
+                except:
+                    try: mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
+                    except: pass
+    
     CACHED_MATERIALS = sorted(mats, key=lambda x: x["name"])
     return CACHED_MATERIALS
-# --- MODELS ---
+
+# --- MODELI ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
 class SimReq(BaseModel):
@@ -101,7 +91,7 @@ class SimReq(BaseModel):
 class ExpReq(BaseModel):
     bom: List[dict]; total_weight: float; total_cost: float; shell_temp: float; heat_flux: float; client: str
 
-# --- API ROUTES ---
+# --- API RUTE ---
 @app.get("/api/init")
 def init_data():
     return {"materials": get_mats(), "metals": METALS_DB, "clients": CLIENTS_DB}
@@ -149,8 +139,6 @@ def load_project(pid: int):
 def calc(r: SimReq):
     t_hot = r.target_temp; t_amb = r.ambient_temp
     temps = [t_hot]
-    
-    # 1. Iteracija
     for _ in range(3):
         total_r = 0.12
         r_vals = []
@@ -166,18 +154,14 @@ def calc(r: SimReq):
     bom = []; acc_th = 0; cid = r.geometry.get('dim2', 0); tw = 0; tc = 0
     liquidus = METALS_DB.get(r.metal, 0)
     freeze_depth = -1
-    
-    # 2. Finalni proracun
     for i, l in enumerate(r.layers):
         if i+1 < len(temps):
             if temps[i] >= liquidus and temps[i+1] <= liquidus:
                 ratio = (temps[i] - liquidus) / (temps[i] - temps[i+1])
                 freeze_depth = acc_th + (l.thickness * ratio)
         acc_th += l.thickness
-
         w = 0
         dim1 = r.geometry.get('dim1', 1)
-        
         if r.geometry.get('type') == 'cylinder':
             od = cid + 2*l.thickness
             w = math.pi * dim1 * ((od/1000/2)**2 - (cid/1000/2)**2) * l.density
@@ -201,26 +185,11 @@ def calc(r: SimReq):
         "req_shell": round(cid) if r.geometry.get('type')=='cylinder' else "-"
     }
 
-# --- EXPORT ---
-@app.post("/api/export-excel")
-def excel(d: ExpReq):
-    wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Specifikacija"
-    ws.append(["PROJEKAT:", d.client, "DATUM:", datetime.now().strftime("%Y-%m-%d")])
-    ws.append(["POZICIJA", "MATERIJAL", "DEBLJINA", "TEMP", "KG", "EUR"])
-    for i, r in enumerate(d.bom, 1):
-        ws.append([i, r['name'], r['th'], r['temp'], r['w'], r['cost']])
-    ws.append(["TOTAL", "", "", "", d.total_weight, f"=SUM(F3:F{2+len(d.bom)})"])
-    wb.save("spec.xlsx"); return FileResponse("spec.xlsx", filename="spec.xlsx")
-
-@app.post("/api/export-pdf")
-def pdf(d: ExpReq):
-    pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial","B",16); pdf.cell(0,10,f"PROJECT: {d.client}",0,1)
-    pdf.set_font("Arial","",12); pdf.cell(0,10,f"Total Weight: {d.total_weight} kg",0,1)
-    pdf.output("r.pdf"); return FileResponse("r.pdf", filename="report.pdf")
-
 @app.get("/", response_class=HTMLResponse)
 def root(): 
     if os.path.exists("dashboard.html"): return open("dashboard.html", encoding="utf-8").read()
-    return "Error"
+    return "Error: dashboard.html not found"
 
-if __name__ == "__main__": uvicorn.run(app, host="0.0.0.0", port=8000)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
