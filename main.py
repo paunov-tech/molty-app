@@ -39,13 +39,13 @@ CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL
 METALS_DB = {
     "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
     "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
-}
+# --- ROBUSNO UCITAVANJE (HIBRIDNI DETEKTIV) ---
+CACHED_MATERIALS = [] 
 
-# --- OVO JE UNIVERZALNO RESENJE ---
 def get_mats():
     global CACHED_MATERIALS
     
-    # 1. KESIRANJE (Brzina)
+    # 1. KESIRANJE
     if CACHED_MATERIALS:
         return CACHED_MATERIALS
 
@@ -53,39 +53,44 @@ def get_mats():
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    # 3. DETEKTIV ZA FOLDER (Trazi gde su PDF-ovi)
-    # Ovo resava dilemu "tds" ili "tehnicki_listovi" jednom zauvek
+    # 3. DETEKTIV ZA FOLDER
     possible_folders = ["tds", "tehnicki_listovi", "TDS", "Tehnicki_listovi"]
-    
     found_folder = None
     cwd = os.getcwd()
     
+    # Proveri sve varijante
     for f in possible_folders:
         full_path = os.path.join(cwd, f)
         if os.path.exists(full_path):
             found_folder = full_path
+            print(f"BINGO! Folder pronadjen: {full_path}")
             break
             
-    # 4. UCITAVANJE (Ako smo nasli folder)
+    # 4. UCITAVANJE (Samo ako smo nasli folder)
     if found_folder:
-        print(f"BINGO! Nasao sam materijale u: {found_folder}")
-        for f in os.listdir(found_folder):
-            if f.lower().endswith(".pdf"):
-                try:
-                    r = PyPDF2.PdfReader(os.path.join(found_folder, f))
-                    txt = r.pages[0].extract_text() or ""
-                    dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
-                    den = 2300
-                    if dm:
-                        val = float(dm.group(1).replace(",", "."))
-                        den = val * 1000 if val < 10 else val
-                    mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
-                except:
-                    # Fallback samo na ime fajla ako PDF pukne
-                    try: mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
-                    except: pass
-    
-    # 5. SACUVAJ U MEMORIJU
+        try:
+            for f in os.listdir(found_folder):
+                if f.lower().endswith(".pdf"):
+                    try:
+                        # Pokusaj citanja
+                        r = PyPDF2.PdfReader(os.path.join(found_folder, f))
+                        txt = r.pages[0].extract_text() or ""
+                        
+                        # Regex za gustinu
+                        dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
+                        den = 2300
+                        if dm:
+                            val = float(dm.group(1).replace(",", "."))
+                            den = val * 1000 if val < 10 else val
+                        
+                        mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
+                    except:
+                        # Fallback na ime fajla
+                        mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
+        except Exception as e:
+            print(f"Greska pri listanju foldera: {e}")
+
+    # 5. SORTIRANJE I KESIRANJE
     CACHED_MATERIALS = sorted(mats, key=lambda x: x["name"])
     return CACHED_MATERIALS
 # --- MODELS ---
