@@ -60,33 +60,65 @@ def init_data():
 
 @app.post("/api/simulate")
 def simulate(r: SimReq):
-    # TVOJA LOGIKA KALKULACIJE
-    t_hot = r.target_temp; t_amb = r.ambient_temp
+    # 1. Izvlačenje tačke likvidusa za izabrani metal
+    # Ako metal nije u bazi, staviće 0 da odmah vidiš da nešto nije u redu
+    liquidus = METALS_DB.get(r.metal, 0)
+
+    # 2. Termička kalkulacija
+    t_hot = r.target_temp
+    t_amb = r.ambient_temp
     temps = [t_hot]
+    
+    # Otpor prenosu toplote (0.12 je standardni koeficijent za spoljni zid)
     total_r = 0.12
     r_vals = []
+    
     for l in r.layers:
         lam = l.lambda_val or 1.5
-        res = (l.thickness/1000.0) / lam
-        r_vals.append(res); total_r += res
+        res = (l.thickness / 1000.0) / lam
+        r_vals.append(res)
+        total_r += res
+    
+    # Proračun toplotnog fluksa (W/m2)
     flux = (t_hot - t_amb) / total_r
+    
+    # Proračun temperatura na presecima slojeva
     curr = t_hot
     for rv in r_vals:
         curr -= flux * rv
         temps.append(curr)
     
+    # 3. Formiranje liste materijala (BOM) i težina
     bom = []
     tw = 0; tc = 0
+    # Uzimamo površinu iz geometrije (default 1m2 ako fali)
+    area = r.geometry.get('dim1', 1.0)
+    
     for i, l in enumerate(r.layers):
-        w = r.geometry.get('dim1', 1) * (l.thickness/1000.0) * l.density
-        bom.append({"name": l.material, "th": l.thickness, "temp": round(temps[i+1]), "w": round(w,1), "cost": round(w/1000*l.price, 1)})
-        tw += w; tc += w/1000*l.price
+        # Težina = Površina * Debljina(m) * Gustina
+        weight = area * (l.thickness / 1000.0) * l.density
+        cost = (weight / 1000.0) * l.price
+        
+        bom.append({
+            "name": l.material,
+            "th": l.thickness,
+            "temp": round(temps[i+1]), # Temperatura na hladnoj strani sloja
+            "w": round(weight, 1),
+            "cost": round(cost, 1)
+        })
+        tw += weight
+        tc += cost
 
+    # 4. Finalni odgovor ka frontendu (uključujući liquidus_temp)
     return {
-        "shell_temp": round(temps[-1], 1), "heat_flux": round(flux, 1),
-        "bom": bom, "total_weight": round(tw, 1), "total_cost": round(tc, 1),
+        "liquidus_temp": liquidus,
+        "shell_temp": round(temps[-1], 1),
+        "heat_flux": round(flux, 1),
+        "bom": bom,
+        "total_weight": round(tw, 1),
+        "total_cost": round(tc, 1),
         "safety": "SAFE" if temps[-1] < 350 else "WARNING",
-        "profile": [{"pos": i*10, "temp": t} for i, t in enumerate(temps)]
+        "profile": [{"pos": i * 10, "temp": round(t, 1)} for i, t in enumerate(temps)]
     }
 
 @app.get("/", response_class=HTMLResponse)
