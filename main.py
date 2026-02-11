@@ -12,7 +12,7 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-PDF_FOLDER = os.path.join(os.getcwd(), "tehnicki_listovi")
+PDF_FOLDER = os.path.join(os.getcwd(), "tds")
 DB_FILE = "molty.db"
 
 # --- DATABASE INIT ---
