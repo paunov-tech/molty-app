@@ -1,355 +1,391 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sr" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOLTY | Advanced Engineering</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); }
-        .input-dark { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; color: white; padding: 10px; border-radius: 8px; width: 100%; transition: all 0.2s; }
-        .input-dark:focus { border-color: #f97316; outline: none; }
-        .btn-primary { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; font-weight: bold; padding: 12px; border-radius: 8px; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4); transition: transform 0.2s; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(249, 115, 22, 0.6); }
-        .layer-visual-item { transition: width 0.5s; height: 60px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: white; font-weight: bold; text-shadow: 0 1px 2px black; border-right: 1px solid rgba(255,255,255,0.2); }
-    </style>
-</head>
-<body class="min-h-screen p-4 md:p-8 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]">
+<meta charset="UTF-8">
+<title>MOLTY PRO V3.2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    body { background: #0b0d12; color: #cfd8dc; font-family: 'Chakra Petch', sans-serif; height: 100vh; overflow: hidden; }
+    
+    .glass { background: #12151b; border: 1px solid #2d333b; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+    .input-cad { background: #0d1117; border: 1px solid #30363d; color: #e6edf3; text-align: center; width: 100%; padding: 6px; font-weight: 600; font-size: 12px; }
+    .input-cad:focus { border-color: #58a6ff; outline: none; }
+    select.mat-select { background: #0d1117; color: #f0883e; border: 1px solid #30363d; width: 100%; padding: 6px; font-weight: 600; }
+    input[list] { text-align: left; color: #58a6ff; font-weight: bold; letter-spacing: 1px; }
 
-    <div class="flex justify-between items-center mb-8 max-w-7xl mx-auto">
-        <div>
-            <h1 class="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-600">MOLTY <span class="text-slate-500 text-lg font-light">PLATFORM</span></h1>
-            <p class="text-slate-400 text-sm">Thermal Analysis & Cost Estimation</p>
-        </div>
-        <div class="flex gap-4">
-            <div class="px-4 py-2 glass rounded-full text-xs text-green-400 font-mono flex items-center gap-2">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                SYSTEM ONLINE
+    .tab-btn { padding: 10px 20px; font-weight: bold; cursor: pointer; border-bottom: 2px solid transparent; color: #8b949e; transition: all 0.3s; }
+    .tab-btn.active { color: #58a6ff; border-bottom: 2px solid #58a6ff; background: #161b22; }
+    
+    .email-box { background: #ffffff; color: #333; font-family: Arial, sans-serif; padding: 20px; border-radius: 4px; font-size: 13px; line-height: 1.5; border: 1px solid #ccc; height: 100%; overflow-y: auto; }
+    
+    .traffic { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 5px currentColor; }
+    .ok { background: #3fb950; color: #3fb950; } .warn { background: #f85149; color: #f85149; }
+    
+    /* --- SRAFURE (JAKI KONTRAST) --- */
+    .pat-0 { 
+        background-color: #1e293b; /* Tamno plava */
+        background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.15) 0px, rgba(255,255,255,0.15) 2px, transparent 2px, transparent 10px); 
+    }
+    .pat-1 { 
+        background-color: #334155; /* Siva */
+        background-image: radial-gradient(rgba(255,255,255,0.3) 1px, transparent 1px); background-size: 8px 8px; 
+    }
+    .pat-2 { 
+        background-color: #0f172a; /* Skoro crna */
+        background-image: linear-gradient(0deg, transparent 24%, rgba(88, 166, 255, .2) 25%, rgba(88, 166, 255, .2) 26%, transparent 27%, transparent 74%, rgba(88, 166, 255, .2) 75%, rgba(88, 166, 255, .2) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(88, 166, 255, .2) 25%, rgba(88, 166, 255, .2) 26%, transparent 27%, transparent 74%, rgba(88, 166, 255, .2) 75%, rgba(88, 166, 255, .2) 76%, transparent 77%, transparent); 
+        background-size: 20px 20px; 
+    }
+    
+    /* LIKVIDUS LINIJA */
+    #freeze-line { position: absolute; top: 0; bottom: 0; width: 3px; border-left: 3px dashed #00e5ff; z-index: 50; pointer-events: none; box-shadow: 0 0 15px #00e5ff; }
+    
+    /* MODAL */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-content { background: #161b22; width: 600px; max-height: 80vh; overflow-y: auto; border: 1px solid #30363d; padding: 20px; border-radius: 8px; }
+
+    ::-webkit-scrollbar { width: 6px; background: #0d1117; } ::-webkit-scrollbar-thumb { background: #30363d; }
+</style>
+</head>
+<body class="flex flex-col h-full">
+
+    <div class="h-12 bg-[#0d1117] border-b border-[#30363d] flex items-center justify-between px-4 shrink-0 z-50">
+        <div class="flex items-center gap-4">
+            <h1 class="text-lg font-bold text-white tracking-widest"><i class="fa-solid fa-cube text-[#58a6ff]"></i> MOLTY</h1>
+            <div class="flex">
+                <div class="tab-btn active" onclick="switchTab('tech')"><i class="fa-solid fa-microchip mr-2"></i> INŽENJERING</div>
+                <div class="tab-btn" onclick="switchTab('comm')"><i class="fa-solid fa-envelope mr-2"></i> ZAHTEV</div>
             </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+                <label class="text-[10px] text-gray-500 font-bold">KLIJENT:</label>
+                <input list="clientsList" id="clientName" class="input-cad text-left uppercase w-64 border-[#1f6feb]" value="METALFER STEEL MILL">
+                <datalist id="clientsList"></datalist>
+            </div>
+            <button onclick="saveProject()" class="bg-[#238636] hover:bg-[#2ea043] text-white px-3 py-1 rounded text-[10px] font-bold shadow flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> SAČUVAJ</button>
+            <button onclick="openHistory()" class="bg-[#1f6feb] hover:bg-[#388bfd] text-white px-3 py-1 rounded text-[10px] font-bold shadow flex items-center gap-2"><i class="fa-solid fa-list"></i> ISTORIJA</button>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
-        
-        <div class="lg:col-span-4 space-y-6">
-            
-            <div class="glass p-6 rounded-2xl">
-                <div class="flex items-center gap-2 mb-4 text-orange-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                    <h2 class="font-bold tracking-wide">CONFIGURATION</h2>
+    <div class="flex-1 flex overflow-hidden">
+        <div id="view-tech" class="flex flex-1">
+            <div class="w-[350px] flex flex-col border-r border-[#30363d] bg-[#0d1117] p-4 overflow-y-auto">
+                <div class="glass p-3 rounded mb-4">
+                    <label class="text-[10px] text-[#58a6ff] uppercase font-bold mb-1 block">Uslovi Rada</label>
+                    <select id="metalType" class="input-cad mb-2 text-left text-[#ff7b72]"></select>
+                    <select id="shape" onchange="uiT()" class="input-cad text-left"><option value="cylinder">ROTACIONA PEĆ / LONAC</option><option value="flat">RAVNI ZID / EAF</option></select>
                 </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs text-slate-400 uppercase font-bold ml-1">Geometry Type</label>
-                        <select id="geo-type" onchange="toggleGeo()" class="input-dark mt-1">
-                            <option value="flat">🧱 Flat Wall (Furnace/Ladle Bottom)</option>
-                            <option value="cylinder">🛢️ Cylinder (Ladle Wall/Pipe)</option>
-                        </select>
+                <div class="glass p-3 rounded mb-4">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div><label id="lbl-dim1" class="text-[9px] text-gray-500 block">Dužina (m)</label><input type="number" id="dim1" value="5" class="input-cad"></div>
+                        <div id="box-dim2"><label class="text-[9px] text-yellow-600 block">Unutra Ø (mm)</label><input type="number" id="dim2" value="2800" class="input-cad text-yellow-500"></div>
                     </div>
-
-                    <div id="dim-flat" class="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
-                        <label class="text-xs text-slate-400">Surface Area (m²)</label>
-                        <input type="number" id="area-m2" value="10" class="input-dark mt-1">
-                    </div>
-
-                    <div id="dim-cyl" class="hidden bg-slate-800/50 p-3 rounded-lg border border-slate-700 grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-slate-400">Height (m)</label>
-                            <input type="number" id="cyl-height" value="3.5" class="input-dark mt-1">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Outer Dia (mm)</label>
-                            <input type="number" id="cyl-dia" value="3000" class="input-dark mt-1">
-                        </div>
-                    </div>
-
-                    <hr class="border-slate-700/50">
-
-                    <div>
-                        <label class="text-xs text-slate-400 uppercase font-bold ml-1">Process Metal</label>
-                        <select id="metal-select" class="input-dark mt-1"></select>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs text-slate-400">Target Temp (°C)</label>
-                            <input type="number" id="t-hot" value="1600" class="input-dark mt-1 text-orange-400 font-bold">
-                        </div>
-                        <div>
-                            <label class="text-xs text-slate-400">Ambient (°C)</label>
-                            <input type="number" id="t-amb" value="25" class="input-dark mt-1">
-                        </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-[9px] text-red-500 block">T. Metala</label><input type="number" id="tin" value="1620" class="input-cad text-red-400 font-bold"></div>
+                        <div><label class="text-[9px] text-blue-500 block">Ambijent</label><input type="number" id="tout" value="30" class="input-cad text-blue-400"></div>
                     </div>
                 </div>
+                <button onclick="addLayer()" class="bg-[#238636] text-white w-full py-2 rounded font-bold text-xs shadow mb-4 hover:bg-[#2ea043] transition">+ DODAJ SLOJ</button>
+                <div id="layers" class="space-y-2 pb-10"></div>
+                <button onclick="calc()" id="btnCalc" class="w-full bg-[#1f6feb] text-white py-3 rounded font-bold shadow-lg mt-auto sticky bottom-0 hover:bg-[#388bfd] transition">IZRAČUNAJ</button>
             </div>
 
-            <div class="glass p-6 rounded-2xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="font-bold text-white flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-                        LINING LAYERS
-                    </h2>
-                    <button onclick="addLayerUI()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition">+ Add</button>
+            <div class="flex-1 bg-[#010409] p-6 overflow-y-auto flex flex-col relative">
+                <div id="hud" class="hidden glass p-4 mb-4 flex justify-between items-center rounded">
+                    <div class="flex gap-8">
+                        <div><p class="text-[9px] text-gray-500 uppercase">Liquidus</p><p class="text-xl font-bold text-[#ff7b72]" id="res-liq">0</p></div>
+                        <div><p class="text-[9px] text-gray-500 uppercase">Freeze Depth</p><p class="text-xl font-bold text-white flex items-center"><span id="light-s" class="traffic ok"></span> <span id="res-freeze">0</span></p></div>
+                        <div><p class="text-[9px] text-gray-500 uppercase">Heat Flux</p><p class="text-xl font-bold text-[#79c0ff]" id="res-flux">0</p></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="flex gap-4 text-xs font-mono mb-2 text-gray-400">
+                            <span>TOTAL: <b class="text-white" id="res-weight">0</b> kg</span>
+                            <span>CENA: <b class="text-white" id="res-cost">0</b> €</span>
+                        </div>
+                        <div class="flex gap-1 justify-end">
+                            <button onclick="exp('pdf')" class="bg-[#30363d] text-white px-3 py-1 rounded text-[10px] hover:bg-[#484f58]">TECH PDF</button>
+                        </div>
+                    </div>
                 </div>
                 
-                <div id="layers-container" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar"></div>
-            </div>
+                <div id="results" class="hidden flex-1 pb-20">
+                    <div class="h-40 w-full bg-[#0d1117] border border-[#30363d] mb-4 flex overflow-hidden rounded shadow-lg relative" id="viz-box">
+                        <div class="w-12 bg-gradient-to-b from-[#da3633] to-[#8957e5] flex items-center justify-center text-white z-10 border-r border-[#30363d] shrink-0"><i class="fa-solid fa-temperature-high text-xl"></i></div>
+                        <div id="viz" class="flex-1 flex w-full relative h-full"></div>
+                        <div id="freeze-line" class="hidden"><div id="freeze-label" class="text-[#00e5ff] font-bold text-[10px] bg-black/80 px-1 absolute top-1 left-1">T.liq</div></div>
+                    </div>
 
-            <button onclick="runSim()" class="btn-primary w-full text-lg shadow-orange-500/20">
-                CALCULATE MODEL 🚀
-            </button>
+                    <div class="glass overflow-hidden mb-4 rounded">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-[#161b22] text-[#8b949e] border-b border-[#30363d]">
+                                <tr>
+                                    <th class="p-3 pl-4">MATERIJAL</th>
+                                    <th class="text-right">DEBLJINA</th>
+                                    <th class="text-right text-[#ff7b72]">TEMP</th>
+                                    <th class="text-right text-[#7ee787]">KG</th>
+                                    <th class="text-right text-[#79c0ff] pr-4">CENA (€)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tb" class="text-[#c9d1d9] font-mono divide-y divide-[#30363d]"></tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="h-64 glass p-2 rounded border border-[#30363d]"><canvas id="ch"></canvas></div>
+                </div>
+                
+                <div id="empty" class="h-full flex flex-col items-center justify-center opacity-10 text-white"><i class="fa-solid fa-industry text-9xl mb-4"></i><p class="font-bold uppercase tracking-[0.5em] text-2xl">Molty Engineering</p></div>
+            </div>
         </div>
 
-        <div class="lg:col-span-8 space-y-6">
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="glass p-4 rounded-xl border-l-4 border-orange-500">
-                    <div class="text-slate-400 text-xs font-bold uppercase">Shell Temp</div>
-                    <div class="text-3xl font-mono font-bold text-white mt-1"><span id="res-shell">0</span><span class="text-sm text-slate-500">°C</span></div>
-                </div>
-                <div class="glass p-4 rounded-xl border-l-4 border-blue-500">
-                    <div class="text-slate-400 text-xs font-bold uppercase">Heat Flux</div>
-                    <div class="text-3xl font-mono font-bold text-white mt-1"><span id="res-flux">0</span><span class="text-sm text-slate-500">W/m²</span></div>
-                </div>
-                <div class="glass p-4 rounded-xl border-l-4 border-purple-500">
-                    <div class="text-slate-400 text-xs font-bold uppercase">Total Weight</div>
-                    <div class="text-3xl font-mono font-bold text-white mt-1"><span id="res-weight">0</span><span class="text-sm text-slate-500">kg</span></div>
-                </div>
-                <div class="glass p-4 rounded-xl border-l-4 border-green-500">
-                    <div class="text-slate-400 text-xs font-bold uppercase">Total Cost</div>
-                    <div class="text-3xl font-mono font-bold text-green-400 mt-1"><span id="res-cost">0</span><span class="text-sm text-slate-500">€</span></div>
+        <div id="view-comm" class="hidden flex-1 bg-[#010409] p-8 flex gap-8">
+            <div class="w-1/3 space-y-6">
+                <div class="glass p-6 rounded-lg border border-[#30363d]">
+                    <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-envelope text-[#58a6ff]"></i> Sonja Email Gen</h2>
+                    
+                    <button onclick="exp('excel')" class="w-full bg-[#238636] hover:bg-[#2ea043] text-white py-3 rounded font-bold shadow mb-2 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-excel"></i> 1. PREUZMI EXCEL (Attach)
+                    </button>
+                    
+                    <button onclick="copyEmail()" class="w-full bg-[#1f6feb] hover:bg-[#388bfd] text-white py-3 rounded font-bold shadow flex items-center justify-center gap-2">
+                        <i class="fa-regular fa-copy"></i> 2. KOPIRAJ SADRŽAJ
+                    </button>
+                    
+                    <a id="mailtoLink" href="#" class="w-full border border-[#30363d] text-gray-300 hover:bg-[#21262d] py-3 rounded font-bold shadow mt-2 flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-external-link-alt"></i> OTVORI GMAIL (Samo Tekst)
+                    </a>
                 </div>
             </div>
 
-            <div class="glass p-6 rounded-2xl">
-                <h3 class="text-slate-400 text-xs font-bold uppercase mb-4">Lining Cross-Section Visualization</h3>
-                <div class="w-full bg-slate-800 h-20 rounded-lg overflow-hidden flex border border-slate-600 relative" id="visual-stack">
-                    <div class="absolute inset-0 flex items-center justify-center text-slate-500 text-xs italic">
-                        Run calculation to see visualization
+            <div class="flex-1 flex flex-col h-full">
+                <label class="text-[10px] text-gray-500 font-bold uppercase mb-2">PREVIEW (SA POTPISOM)</label>
+                <div id="email-preview-container" class="email-box rounded shadow-lg">
+                    <div class="email-header">
+                        <b>To:</b> sonja.mayerhofer@calderys.com<br>
+                        <b>Cc:</b> r.majstorovic@calderyserbia.com<br>
+                        <b>Subject:</b> <span id="mail-subject">RFQ</span>
                     </div>
-                </div>
-                <div class="flex justify-between text-xs text-slate-500 mt-1 font-mono">
-                    <span>HOT FACE (Int)</span>
-                    <span>COLD FACE (Ext)</span>
+                    <div id="email-body" style="font-family: Arial, sans-serif; color: #333;">
+                        </div>
                 </div>
             </div>
+        </div>
 
-            <div class="glass p-4 rounded-2xl h-[300px]">
-                <canvas id="mainChart"></canvas>
+    </div>
+
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-white font-bold text-lg">Istorija Projekata</h2>
+                <button onclick="document.getElementById('historyModal').style.display='none'" class="text-gray-500 hover:text-white">✕</button>
             </div>
-
-            <div class="glass rounded-2xl overflow-hidden">
-                <div class="bg-slate-800/50 p-4 border-b border-slate-700 flex justify-between">
-                    <h3 class="font-bold text-slate-200">💰 Commercial Breakdown (BOM)</h3>
-                    <span class="text-xs text-slate-400">Export Ready</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-slate-400 uppercase bg-slate-900/50">
-                            <tr>
-                                <th class="px-6 py-3">Layer Material</th>
-                                <th class="px-6 py-3">Thickness</th>
-                                <th class="px-6 py-3 text-right">Temp (Cold)</th>
-                                <th class="px-6 py-3 text-right">Weight (kg)</th>
-                                <th class="px-6 py-3 text-right">Cost (€)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bom-body" class="divide-y divide-slate-700/50">
-                            </tbody>
-                    </table>
-                </div>
+            <div class="overflow-hidden rounded border border-[#30363d]">
+                <table class="w-full text-left text-xs text-gray-300">
+                    <thead class="bg-[#0d1117] text-[#8b949e]"><tr><th class="p-2">ID</th><th class="p-2">KLIJENT</th><th class="p-2">DATUM</th><th class="p-2">METAL</th><th class="p-2">AKCIJA</th></tr></thead>
+                    <tbody id="historyList" class="divide-y divide-[#30363d]"></tbody>
+                </table>
             </div>
-
-            <div class="text-right text-xs text-slate-500">
-                Safety Limit (Liquidus): <span id="liq-limit" class="text-red-500 font-bold">---</span> °C
-            </div>
-
         </div>
     </div>
 
     <script>
-        let MATS = [];
-        let CHART = null;
+        let MATS=[], METALS={}, LAST=null, CH=null;
 
-        // --- INIT ---
+        // SIGURAN POTPIS (SA LINKOM ZA LOGO)
+        const RADA_SIGNATURE = `
+<br><br>
+<table cellpadding="0" cellspacing="0" border="0" style="max-width:480px;font-family:'Segoe UI',Arial,sans-serif;border-collapse:collapse;">
+  <tr><td style="padding:16px 0 0 0;">&nbsp;</td></tr>
+  <tr><td style="padding:0 0 14px 0;">
+    <a href="https://calderys.com" target="_blank" style="border:0;text-decoration:none;">
+      <img src="https://www.calderys.com/sites/default/files/styles/logo/public/calderys_logo.png" width="160" alt="calderys" style="display:block;border:0;" />
+    </a>
+  </td></tr>
+  <tr><td style="border-bottom:2px solid #e87722;font-size:1px;line-height:1px;">&nbsp;</td></tr>
+  <tr><td style="padding:16px 0 0 0;">
+    <span style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:normal;color:#1a1a1a;letter-spacing:0.3px;">Radojka Majstorović</span>
+  </td></tr>
+  <tr><td style="padding:4px 0 12px 0;">
+    <span style="font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:500;color:#e87722;letter-spacing:1.8px;text-transform:uppercase;">Calderys Austria GmbH</span>
+  </td></tr>
+  <tr><td style="padding:0 0 14px 0;">
+    <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;font-family:'Segoe UI','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:12px;color:#444444;">
+      <tr>
+        <td style="padding:2px 0;">
+          <a href="mailto:r.majstorovic@calderyserbia.com" style="color:#1a1a1a;text-decoration:none;font-weight:500;">r.majstorovic@calderyserbia.com</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:2px 0;color:#888888;font-size:11px;">
+          Bizeljska cesta 5, SI-8250 Brežice, Slovenia
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>`;
+
         window.onload = async () => {
             try {
-                const r = await fetch('/api/init');
+                const r = await fetch('/api/init'); 
                 const d = await r.json();
-                MATS = d.materials;
-                const sel = document.getElementById('metal-select');
-                for(let m in d.metals) sel.innerHTML += `<option value="${m}">${m} (T.liq: ${d.metals[m]}°C)</option>`;
-                addLayerUI(); 
-                addLayerUI(); // Dva sloja za pocetak
+                MATS = d.materials; 
+                METALS = d.metals;
+                
+                const ms = document.getElementById('metalType'); 
+                for(let m in METALS) ms.innerHTML += `<option value="${m}">${m} (T.liq: ${METALS[m]}°C)</option>`;
+                
+                const cs = document.getElementById('clientsList'); 
+                d.clients.forEach(c => cs.innerHTML += `<option value="${c}">`);
+                
+                addLayer();
+                
+                setTimeout(() => {
+                    calc();
+                }, 500);
+
             } catch(e) { console.error(e); }
+            uiT();
         };
 
-        // --- UI HELPERS ---
-        function toggleGeo() {
-            const type = document.getElementById('geo-type').value;
-            document.getElementById('dim-flat').classList.toggle('hidden', type !== 'flat');
-            document.getElementById('dim-cyl').classList.toggle('hidden', type !== 'cylinder');
+        function switchTab(t) {
+            if(t==='comm' && !LAST) return alert("Prvo uradi proračun!");
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('view-tech').classList.toggle('hidden', t!=='tech');
+            document.getElementById('view-comm').classList.toggle('hidden', t!=='comm');
+            if(t==='comm') updateMailPreview();
         }
 
-        function addLayerUI() {
-            const div = document.createElement('div');
-            div.className = "p-3 bg-slate-800/50 rounded-lg border border-slate-700 layer-row flex gap-2 items-center";
+        function updateMailPreview() {
+            const client = document.getElementById('clientName').value;
+            document.getElementById('mail-subject').innerText = `RFQ - ${client} - Refractory Lining`;
             
-            // Boje za vizuelizaciju
-            const colors = ['#f97316', '#3b82f6', '#8b5cf6', '#10b981', '#ef4444', '#64748b'];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-            let opts = MATS.map(m => `<option value="${m.name}" data-lam="${m.lambda_val}" data-den="${m.density}" data-price="${m.price}">${m.name}</option>`).join('');
-            
-            div.innerHTML = `
-                <div class="w-2 h-10 rounded mr-2" style="background:${randomColor}"></div>
-                <div class="flex-1">
-                    <select class="l-mat input-dark text-xs mb-1" data-color="${randomColor}">${opts}</select>
-                    <div class="flex items-center gap-2">
-                        <input type="number" class="l-th input-dark text-xs py-1" value="100" placeholder="mm">
-                        <span class="text-xs text-slate-500">mm</span>
-                    </div>
-                </div>
-                <button onclick="this.parentElement.remove()" class="text-slate-600 hover:text-red-400">✕</button>
-            `;
-            document.getElementById('layers-container').appendChild(div);
-        }
-
-        // --- MAIN CALCULATION ---
-        async function runSim() {
-            const btn = document.querySelector('button[onclick="runSim()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "CALCULATING...";
-            
-            const layers = [];
-            document.querySelectorAll('.layer-row').forEach(r => {
-                const sel = r.querySelector('.l-mat');
-                const opt = sel.options[sel.selectedIndex];
-                layers.push({
-                    material: sel.value,
-                    thickness: parseFloat(r.querySelector('.l-th').value),
-                    lambda_val: parseFloat(opt.dataset.lam),
-                    density: parseFloat(opt.dataset.den),
-                    price: parseFloat(opt.dataset.price),
-                    color: sel.dataset.color // Cuvanje boje za vizuelizaciju
-                });
+            let bomText = "";
+            LAST.bom.forEach(i => {
+                bomText += `${i.name} | ${i.th}mm | ${i.w} kg\n`;
             });
 
-            // Geometry logic
-            const gType = document.getElementById('geo-type').value;
-            let geom = { type: gType };
-            if(gType === 'cylinder') {
-                geom.dim1 = parseFloat(document.getElementById('cyl-height').value);
-                geom.diameter = parseFloat(document.getElementById('cyl-dia').value);
-            } else {
-                geom.dim1 = parseFloat(document.getElementById('area-m2').value);
-            }
+            const bodyText = `Dear Sonja,
+<br><br>
+Please provide a quotation for the following project:<br>
+<b>Client:</b> ${client}<br>
+<b>Reference:</b> ${new Date().toLocaleDateString()}
+<br><br>
+<b>Technical Specification:</b><br>
+--------------------------------------------------<br>
+${bomText.replace(/\n/g, '<br>')}
+--------------------------------------------------
+<br><br>
+Please find the detailed Excel specification attached.<br>
+We need the delivery time and DDP prices.
+<br><br>
+Best regards,`;
 
-            try {
-                const req = await fetch('/api/simulate', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        metal: document.getElementById('metal-select').value,
-                        target_temp: parseFloat(document.getElementById('t-hot').value),
-                        ambient_temp: parseFloat(document.getElementById('t-amb').value),
-                        layers: layers,
-                        geometry: geom
-                    })
-                });
-                
-                if(!req.ok) throw new Error("Server Error");
-                const res = await req.json();
-
-                // 1. UPDATE NUMBERS
-                document.getElementById('res-shell').innerText = res.shell_temp;
-                document.getElementById('res-flux').innerText = res.heat_flux;
-                document.getElementById('res-weight').innerText = res.total_weight;
-                document.getElementById('res-cost').innerText = res.total_cost.toLocaleString('de-DE'); // Euro format
-                document.getElementById('liq-limit').innerText = res.liquidus_temp;
-
-                // 2. UPDATE TABLE (COMMERCIAL)
-                const tbody = document.getElementById('bom-body');
-                tbody.innerHTML = "";
-                res.bom.forEach((item, i) => {
-                    // Nadji boju iz inputa
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-800/50 transition">
-                            <td class="px-6 py-4 font-medium text-white">${item.name}</td>
-                            <td class="px-6 py-4 text-orange-400">${item.th} mm</td>
-                            <td class="px-6 py-4 text-right font-mono">${item.temp} °C</td>
-                            <td class="px-6 py-4 text-right text-slate-300">${item.w} kg</td>
-                            <td class="px-6 py-4 text-right text-green-400 font-bold">${item.cost.toFixed(1)} €</td>
-                        </tr>
-                    `;
-                });
-
-                // 3. VISUALIZATION (GRAFIČKI PRIKAZ SLOJEVA)
-                const visContainer = document.getElementById('visual-stack');
-                visContainer.innerHTML = "";
-                let totalTh = layers.reduce((acc, l) => acc + l.thickness, 0);
-                
-                layers.forEach(l => {
-                    const widthPct = (l.thickness / totalTh) * 100;
-                    const el = document.createElement('div');
-                    el.className = "layer-visual-item";
-                    el.style.width = widthPct + "%";
-                    el.style.backgroundColor = l.color;
-                    el.innerText = l.thickness + "mm";
-                    visContainer.appendChild(el);
-                });
-
-                // 4. CHART
-                renderChart(res.profile, res.liquidus_temp);
-
-            } catch(e) {
-                console.error(e);
-                alert("Greška u simulaciji. Proveri unose.");
-            }
-            btn.innerHTML = originalText;
+            document.getElementById('email-body').innerHTML = bodyText + RADA_SIGNATURE;
+            
+            const plainBody = bodyText.replace(/<br>/g, '\n').replace(/<b>|<\/b>/g, '') + "\n\nRadojka Majstorović";
+            const subject = document.getElementById('mail-subject').innerText;
+            const ccEmail = "r.majstorovic@calderyserbia.com";
+            
+            document.getElementById('mailtoLink').href = `mailto:sonja.mayerhofer@calderys.com?cc=${ccEmail}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
         }
 
-        function renderChart(data, limit) {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            if(CHART) CHART.destroy();
-            
-            CHART = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.map(d => d.pos + ' mm'),
-                    datasets: [{
-                        label: 'Temperature Profile',
-                        data: data.map(d => d.temp),
-                        borderColor: '#f97316',
-                        backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: 0
-                    }, {
-                        label: 'Liquidus Limit',
-                        data: Array(data.length).fill(limit),
-                        borderColor: '#ef4444',
-                        borderDash: [5,5],
-                        borderWidth: 1,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#94a3b8' } } },
-                    scales: {
-                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
-                    }
-                }
+        function copyEmail() {
+            const range = document.createRange();
+            range.selectNode(document.getElementById('email-body'));
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            alert("Kopirano!");
+        }
+
+        function uiT() { const c = document.getElementById('shape').value === 'cylinder'; document.getElementById('lbl-dim1').innerText = c ? "Dužina (m)" : "Površina (m²)"; document.getElementById('box-dim2').style.display = c ? 'block' : 'none'; document.getElementById('hud-shell').style.display = c ? 'block' : 'none'; }
+        
+        function upd(sel) { const m = MATS.find(x=>x.name===sel.value); if(m) { const r = sel.parentElement.parentElement; r.querySelector('.l').value=m.lambda_val; r.querySelector('.d').value=m.density; r.querySelector('.p').value=m.price; } }
+        
+        function addLayer() {
+            let o = '<option value="" disabled selected>-- IZABERI --</option>'; MATS.forEach(m => o += `<option value="${m.name}">${m.name}</option>`);
+            const d = document.createElement('div'); d.className = 'bg-[#161b22] p-2 border border-[#30363d] mb-2 relative group rounded';
+            d.innerHTML = `<button onclick="this.parentElement.remove()" class="absolute -top-2 -right-2 bg-[#21262d] text-[#f85149] w-5 h-5 flex items-center justify-center border border-[#30363d] text-xs cursor-pointer rounded-full">✕</button><div class="mb-1"><select class="mat-select" onchange="upd(this)">${o}</select></div><div class="grid grid-cols-4 gap-1"><input type="number" class="th input-cad text-[#e6edf3]" value="114" placeholder="mm"><input type="number" class="l input-cad text-[#d2a8ff]" placeholder="λ"><input type="number" class="d input-cad text-[#7ee787]" placeholder="kg"><input type="number" class="p input-cad text-[#79c0ff]" placeholder="€"></div>`;
+            document.getElementById('layers').appendChild(d);
+            const sel = d.querySelector('select'); if(MATS.length > 0) { sel.selectedIndex = 1; upd(sel); }
+        }
+        
+        async function calc() {
+            document.getElementById('btnCalc').innerText = "...";
+            const l = []; document.querySelectorAll('#layers > div').forEach(r=>{ const s = r.querySelector('select'); if(s && s.value) l.push({ material: s.value, thickness: parseFloat(r.querySelector('.th').value)||0, lambda_val: parseFloat(r.querySelector('.l').value)||0.1, density: parseFloat(r.querySelector('.d').value)||0, price: parseFloat(r.querySelector('.p').value)||0 }); });
+            if(l.length===0) return alert("Prazno!");
+            const pl = { metal: document.getElementById('metalType').value, target_temp: parseFloat(document.getElementById('tin').value), ambient_temp: parseFloat(document.getElementById('tout').value), layers: l, geometry: { type: document.getElementById('shape').value, dim1: parseFloat(document.getElementById('dim1').value), dim2: parseFloat(document.getElementById('dim2').value) } };
+            const res = await fetch('/api/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(pl)});
+            LAST = await res.json(); render(LAST); document.getElementById('btnCalc').innerText = "IZRAČUNAJ";
+        }
+
+        async function exp(t) {
+            if(!LAST) return;
+            LAST.client = document.getElementById('clientName').value;
+            const res = await fetch('/api/export-'+t, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(LAST)});
+            const b = await res.blob();
+            const a = document.createElement('a'); a.href=window.URL.createObjectURL(b); a.download=`MOLTY_${LAST.client}.${t=='pdf'?'pdf':'xlsx'}`; a.click();
+        }
+
+        async function saveProject() {
+            if(!LAST) return alert("Nema podataka za čuvanje!");
+            LAST.client = document.getElementById('clientName').value;
+            const res = await fetch('/api/db/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...LAST, metal: document.getElementById('metalType').value, target_temp: parseFloat(document.getElementById('tin').value), ambient_temp: parseFloat(document.getElementById('tout').value), layers: LAST.bom.map(b => ({material:b.name, thickness:b.th, lambda_val:0, density:0, price:0})), geometry: {type:document.getElementById('shape').value, dim1:0, dim2:0} })}); 
+            alert("Sačuvano!");
+        }
+
+        async function openHistory() {
+            document.getElementById('historyModal').style.display = 'flex';
+            const res = await fetch('/api/db/list');
+            const list = await res.json();
+            let h = '';
+            list.forEach(p => {
+                h += `<tr class="hover:bg-[#21262d]"><td class="p-2 text-gray-500">#${p.id}</td><td class="p-2 font-bold">${p.client}</td><td class="p-2">${p.date}</td><td class="p-2 text-red-400">${p.metal}</td><td class="p-2"><button onclick="loadProject(${p.id})" class="text-[#58a6ff] hover:underline">Učitaj</button></td></tr>`;
             });
+            document.getElementById('historyList').innerHTML = h;
+        }
+
+        async function loadProject(id) {
+            alert("Učitavanje: " + id);
+            document.getElementById('historyModal').style.display = 'none';
+        }
+
+        function render(d) {
+            document.getElementById('empty').classList.add('hidden'); document.getElementById('hud').classList.remove('hidden'); document.getElementById('results').classList.remove('hidden');
+            
+            document.getElementById('res-liq').innerText = d.liquidus + "°C";
+            document.getElementById('res-freeze').innerText = d.freeze_depth + (typeof d.freeze_depth==='number'?" mm":"");
+            document.getElementById('light-s').className = "traffic " + (d.safety.includes("CRITICAL")?"warn":"ok");
+            document.getElementById('res-flux').innerText = d.heat_flux + " W/m²";
+            document.getElementById('res-weight').innerText = d.total_weight.toLocaleString();
+            document.getElementById('res-cost').innerText = d.total_cost.toLocaleString();
+            
+            let tb = '', viz = '';
+            let totalThk = 0; d.bom.forEach(i => totalThk += i.th);
+
+            d.bom.forEach((i, idx) => {
+                // FLEXBOX VIZUALIZACIJA (Stabilnija od procenta)
+                let pat = 'pat-' + (idx%3);
+                // TABELA: CENA JE SADA TU
+                tb += `<tr class="hover:bg-[#21262d] border-b border-[#30363d]"><td class="p-3 pl-4 font-bold text-[#e6edf3] border-l-2 border-[#1f6feb]">${i.name}</td><td class="text-right p-3">${i.th}</td><td class="text-right p-3 text-[#ff7b72] font-bold">${i.temp}°</td><td class="text-right p-3 text-[#7ee787]">${i.w}</td><td class="text-right p-3 text-[#79c0ff] pr-4 font-bold">${i.cost.toFixed(2)} €</td></tr>`;
+                
+                // GRAFIKA: Koristimo style="flex: X" sto je prirodnije za flexbox
+                viz += `<div style="flex:${i.th}" class="${pat} relative border-r border-[#000] h-full flex flex-col justify-end transition hover:opacity-80"><div class="text-[9px] text-center text-gray-300 bg-black/70 py-1 w-full border-t border-gray-700 font-bold overflow-hidden text-ellipsis whitespace-nowrap">${i.th}</div></div>`;
+            });
+            document.getElementById('tb').innerHTML = tb; document.getElementById('viz').innerHTML = viz;
+
+            const line = document.getElementById('freeze-line');
+            if(typeof d.freeze_depth === 'number') {
+                line.style.display = 'block';
+                line.style.left = ((d.freeze_depth/totalThk)*100) + '%';
+            } else line.style.display = 'none';
+
+            if(CH) CH.destroy();
+            CH = new Chart(document.getElementById('ch'), {type:'line', data:{labels:d.profile.map(p=>p.pos), datasets:[{data:d.profile.map(p=>p.temp), borderColor:'#58a6ff', borderWidth:2, pointRadius:0, fill:true}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{grid:{color:'#30363d'}}, y:{grid:{color:'#30363d'}}}}});
         }
     </script>
 </body>
