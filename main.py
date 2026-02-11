@@ -4,11 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# --- INICIJALIZACIJA ---
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -25,13 +23,11 @@ def init_db():
 
 init_db()
 
-# --- MODELI PODATAKA ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
 class SimReq(BaseModel):
     metal: str; target_temp: float; ambient_temp: float; layers: List[Layer]
 
-# --- GOOGLE DRIVE LOGIKA ---
 def get_drive_service():
     try:
         creds_json = os.getenv("GOOGLE_CREDENTIALS")
@@ -41,12 +37,8 @@ def get_drive_service():
         return build('drive', 'v3', credentials=creds)
     except: return None
 
-# --- TDS SKENER (Iz tvog foldera) ---
 def get_mats_from_tds():
-    mats = [
-        {"name": "STEEL SHELL", "density": 7850, "lambda_val": 50.0, "price": 1000},
-        {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}
-    ]
+    mats = [{"name": "STEEL SHELL", "density": 7850, "lambda_val": 50.0, "price": 1000}]
     if not os.path.exists(TDS_PATH): 
         os.makedirs(TDS_PATH)
         return mats
@@ -65,7 +57,6 @@ def get_mats_from_tds():
             except: continue
     return mats
 
-# --- API RUTE ---
 @app.get("/api/init")
 def init_data():
     return {
@@ -110,7 +101,7 @@ def analyze_file(file_id: str):
         w = re.search(r"(\d+[.,]?\d*)\s*(T|TN|TONA|KG)", txt)
         p = re.search(r"(\d+[.,]?\d*)\s*(EUR|€|USD|\$)", txt)
         return {"status": "success", "extracted": {"material": mat, "weight": w.group(1).replace(",", ".") if w else "0", "price": p.group(1).replace(",", ".") if p else "0"}}
-    except Exception as e: return {"status": "error", "message": str(e)}
+    except: return {"status": "error"}
 
 @app.post("/api/simulate")
 def simulate(r: SimReq):
@@ -121,10 +112,8 @@ def simulate(r: SimReq):
         cost = (w/1000) * l.price
         tw += w; tc += cost
         bom.append({"name": l.material, "th": l.thickness, "w": round(w, 1), "cost": round(cost, 1)})
-    # Prosta simulacija temperature oklopa
     shell_t = r.ambient_temp + ((r.target_temp - r.ambient_temp) / total_r) * 0.12
     return {"shell_temp": round(shell_t, 1), "total_weight": round(tw, 1), "total_cost": round(tc, 1), "bom": bom}
 
 @app.get("/", response_class=HTMLResponse)
-def root(): 
-    return open("dashboard.html", encoding="utf-8").read()
+def root(): return open("dashboard.html", encoding="utf-8").read()
