@@ -77,3 +77,6 @@ watchdog==6.0.0
 yarl==1.22.0
 psycopg2-binary
 python-dotenv
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
