@@ -46,12 +46,15 @@ def load_materials_once():
     return CACHED_MATERIALS
 
 # --- API RUTE ---
-@app.get("/api/init")
-def init_data():
-    return {
-        "materials": load_materials_once(),
-        "metals": {"Celik": 1510, "Bakar": 1085, "Aluminijum": 660},
-        "clients": ["METALFER", "HBIS", "ZIJIN"]
+from fastapi.responses import FileResponse
+
+@app.get("/", response_class=HTMLResponse)
+def root():
+    # Pokušavamo da nađemo dashboard.html u root folderu
+    file_path = os.path.join(os.getcwd(), "dashboard.html")
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return "<h1>Greška: dashboard.html nije pronađen na serveru!</h1>"
     }
 
 @app.post("/api/db/save")
