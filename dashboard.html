@@ -97,7 +97,7 @@
                 MATS = d.materials;
                 
                 const ms = document.getElementById('metalSelect');
-                ms.innerHTML = ""; // Clear existing
+                ms.innerHTML = "";
                 for(let m in d.metals) {
                     ms.innerHTML += `<option value="${m}">${m} (${d.metals[m]}°C)</option>`;
                 }
@@ -133,10 +133,8 @@
         async function scanArchive() {
             const fid = document.getElementById('clientSelect').value;
             if(!fid) return alert("Izaberi klijenta prvo.");
-            
             const tb = document.getElementById('docTable');
             tb.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Skeniranje u toku...</td></tr>';
-            
             try {
                 const r = await fetch(`/api/drive/scan-deep/${fid}`);
                 const d = await r.json();
@@ -163,6 +161,7 @@
             const div = document.createElement('div');
             div.className = 'glass p-3 relative group animate-fade-in';
             
+            // Materijali povučeni direktno iz foldera tehnicki_listovi
             let opt = MATS.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
             
             div.innerHTML = `
@@ -216,7 +215,6 @@
                     })
                 });
                 const res = await r.json();
-                
                 document.getElementById('emptyState').classList.add('hidden');
                 document.getElementById('resBox').classList.remove('hidden');
                 document.getElementById('res-t').innerText = res.shell_temp + "°C";
@@ -231,31 +229,22 @@
                 });
                 document.getElementById('resTable').innerHTML = h;
                 document.getElementById('vizBar').innerHTML = v;
-            } catch (e) {
-                alert("Greška u simulaciji.");
-            }
+            } catch (e) { alert("Greška u simulaciji."); }
         }
 
         async function runAiAnalysis(fileId) {
-            // Vizuelni feedback
             const btn = event.target;
             const originalContent = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-cog animate-spin"></i> ROBOT...';
             btn.disabled = true;
-
             try {
                 const res = await fetch(`/api/drive/analyze-file/${fileId}`);
                 const data = await res.json();
-                
                 if(data.status === 'success') {
                     alert(`🤖 ROBOT IZVEŠTAJ:\n\nMaterijal: ${data.extracted.material}\nKoličina: ${data.extracted.weight} t\nCena: ${data.extracted.price} €`);
-                } else {
-                    alert("Robot nije uspeo da očita podatke iz PDF-a.");
-                }
-            } catch (e) {
-                console.error("Robot error:", e);
-                alert("Sistemska greška pri analizi.");
-            } finally {
+                } else { alert("Robot nije uspeo da očita podatke iz PDF-a."); }
+            } catch (e) { alert("Sistemska greška pri analizi."); } 
+            finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
