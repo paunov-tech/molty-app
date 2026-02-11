@@ -12,51 +12,47 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-PDF_FOLDER = os.path.join(os.getcwd(), "tehnicki_listovi")
-DB_FILE = "molty.db"
-
-# --- DATABASE INIT ---
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS projects
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  client TEXT,
-                  date TEXT,
-                  metal TEXT,
-                  total_weight REAL,
-                  total_cost REAL,
-                  data TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db() # Pokreni pri startu
-
-# --- DATA MOCK ---
-CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL KOSICE", "ARCELLOR MITTAL"]
-METALS_DB = {
-    "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
-    "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
-}
+# --- IZMENA: Nova putanja i bolja dijagnostika ---
+PDF_FOLDER = os.path.join(os.getcwd(), "tds") 
 
 def get_mats():
+    # Osnovni materijali
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
+    
+    print(f"--- TRAZIM PDF-ove U: {PDF_FOLDER} ---") # Log za Render
+    
     if os.path.exists(PDF_FOLDER):
-        for f in os.listdir(PDF_FOLDER):
+        files = os.listdir(PDF_FOLDER)
+        print(f"--- NASAO FAJLOVA: {len(files)} ---")
+        for f in files:
+            print(f"Proveravam fajl: {f}")
             if f.lower().endswith(".pdf"):
                 try:
-                    r = PyPDF2.PdfReader(os.path.join(PDF_FOLDER, f))
-                    txt = r.pages[0].extract_text() or ""
-                    dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
-                    den = 2300
-                    if dm:
-                        val = float(dm.group(1).replace(",", "."))
-                        den = val * 1000 if val < 10 else val
-                    mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
-                except: pass
-    return sorted(mats, key=lambda x: x["name"])
+                    path = os.path.join(PDF_FOLDER, f)
+                    r = PyPDF2.PdfReader(path)
+                    # Pokusaj citanja teksta
+                    if len(r.pages) > 0:
+                        txt = r.pages[0].extract_text() or ""
+                        # Trazi gustinu
+                        dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
+                        den = 2300
+                        if dm:
+                            val = float(dm.group(1).replace(",", "."))
+                            den = val * 1000 if val < 10 else val
+                        
+                        # Dodaj materijal
+                        m_name = f[:-4].upper()
+                        mats.append({"name": m_name, "density": int(den), "lambda_val": 1.5, "price": 800})
+                        print(f"✅ UCITAN: {m_name}")
+                    else:
+                        print(f"❌ GRESKA {f}: Prazan PDF")
+                except Exception as e:
+                    print(f"❌ CRITICAL ERROR {f}: {str(e)}") # Ispisi pravu gresku!
+    else:
+        print("❌ GRESKA: Folder 'tds' ne postoji!")
 
+    return sorted(mats, key=lambda x: x["name"])
 # --- MODELS ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
