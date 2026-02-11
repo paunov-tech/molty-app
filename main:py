@@ -1,0 +1,207 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from typing import List
+import uvicorn
+import os
+import re
+import PyPDF2
+import math
+
+app = FastAPI(title="MOLTY ULTIMATE CORE")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- PDF SCANNER ---
+CURRENT_DIR = os.getcwd()
+PDF_FOLDER = os.path.join(CURRENT_DIR, "tehnicki_listovi")
+
+def scan_local_materials():
+    materials = []
+    print(f"🔍 Tražim PDF-ove u: {PDF_FOLDER}")
+    
+    if not os.path.exists(PDF_FOLDER):
+        print("❌ GRESKA: Folder ne postoji!")
+        return [] # Vrati prazno da bi se videlo da nema fajlova
+    
+    files = [f for f in os.listdir(PDF_FOLDER) if f.lower().endswith(".pdf")]
+    print(f"📄 Pronađeno fajlova: {len(files)}")
+
+    for filename in files:
+        mat_name = filename.replace(".pdf", "").replace(".PDF", "").replace("_", " ")
+        category, lambda_val, density = "working", 1.5, 2400
+        
+        # Pokušaj čitanja
+        try:
+            reader = PyPDF2.PdfReader(os.path.join(PDF_FOLDER, filename))
+            if len(reader.pages) > 0:
+                text = reader.pages[0].extract_text() or ""
+                # Gustina
+                dm = re.search(r"(\d+[.,]\d+)\s*(g/cm3|kg/dm3)", text)
+                if dm:
+                    val = float(dm.group(1).replace(",", "."))
+                    density = val * 1000 if val < 10 else val
+                # Tip
+                if density < 1600 or "INSUL" in text.upper():
+                    category = "insulation"
+                    lambda_val = 0.2
+                elif "CAST" in text.upper():
+                    lambda_val = 1.6
+        except: 
+            print(f"⚠️ Ne mogu da pročitam: {filename}")
+        
+        # Procena cene
+        price = 600.0
+        if "INSUL" in mat_name.upper(): price = 450.0
+        elif density > 2700: price = 1200.0
+        elif "CAST" in mat_name.upper(): price = 850.0
+
+        materials.append({
+            "name": mat_name, 
+            "category": category, 
+            "density": int(density), 
+            "lambda_val": round(lambda_val, 2),
+            "price": price 
+        })
+            
+    materials.sort(key=lambda x: x["name"])
+    return materials
+
+# Učitaj materijale
+CACHED_MATERIALS = scan_local_materials()
+
+# --- MODELI ---
+class LayerInput(BaseModel):
+    material: str
+    thickness: int
+    lambda_val: float
+    density: float
+    price: float 
+
+class GeometryReq(BaseModel):
+    type: str       # "cylinder" ili "flat"
+    dim1: float     # Dužina (mm) ILI Površina (m2)
+    dim2: float     # Svetli Otvor (mm)
+
+class SimReq(BaseModel):
+    target_temp: int
+    ambient_temp: int
+    layers: List[LayerInput]
+    geometry: GeometryReq
+
+# --- API ---
+@app.post("/api/simulate")
+def calc(req: SimReq):
+    # 1. TERMIKA & TEMPERATURNI PROFIL
+    total_r = 0.1 # R_se (prelaz na vazduh)
+    
+    # Prvo izračunamo ukupan otpor da dobijemo fluks
+    for l in req.layers:
+        r_val = (l.thickness/1000.0) / (l.lambda_val if l.lambda_val > 0 else 1)
+        total_r += r_val
+    
+    dt = req.target_temp - req.ambient_temp
+    flux = round(dt / total_r, 2)
+    
+    # Sada računamo temperature po slojevima
+    curr_t = req.target_temp
+    profile_points = [{"pos": 0, "temp": round(curr_t)}]
+    acc_th = 0
+    
+    layer_temps = [] # Ovde čuvamo izlazne temperature za svaki sloj
+
+    for l in req.layers:
+        r_val = (l.thickness/1000.0) / (l.lambda_val if l.lambda_val > 0 else 1)
+        drop = flux * r_val
+        curr_t -= drop
+        
+        acc_th += l.thickness
+        profile_points.append({"pos": acc_th, "temp": round(curr_t)})
+        layer_temps.append(round(curr_t)) # Temp na kraju ovog sloja (spoj sa sledećim)
+
+    shell_t = round(curr_t, 1)
+
+    # 2. GEOMETRIJA & BOM
+    bom = []
+    tot_w = 0
+    tot_c = 0
+    
+    if req.geometry.type == "cylinder":
+        # CILINDAR (Inside-Out)
+        L_m = req.geometry.dim1 / 1000.0
+        curr_ID_mm = req.geometry.dim2 
+        
+        for i, l in enumerate(req.layers):
+            d_mm = l.thickness
+            ID_m = curr_ID_mm / 1000.0
+            OD_m = (curr_ID_mm + 2*d_mm) / 1000.0
+            
+            vol = (math.pi * L_m * (OD_m**2 - ID_m**2)) / 4
+            w = vol * l.density
+            c = (w/1000.0) * l.price
+            area = math.pi * ID_m * L_m
+            
+            bom.append({
+                "name": l.material,
+                "th": d_mm,
+                "temp_out": layer_temps[i], # <--- TEMP NA SPOJU
+                "id": round(curr_ID_mm),
+                "od": round(curr_ID_mm + 2*d_mm),
+                "area": round(area, 2),
+                "vol": round(vol, 3),
+                "w": round(w, 1),
+                "cost": round(c, 2)
+            })
+            tot_w += w
+            tot_c += c
+            curr_ID_mm += 2*d_mm
+            
+    else:
+        # FLAT
+        Area_m2 = req.geometry.dim1 
+        for i, l in enumerate(req.layers):
+            vol = Area_m2 * (l.thickness / 1000.0)
+            w = vol * l.density
+            c = (w/1000.0) * l.price
+            
+            bom.append({
+                "name": l.material,
+                "th": l.thickness,
+                "temp_out": layer_temps[i], # <--- TEMP NA SPOJU
+                "id": "-", "od": "-", 
+                "area": Area_m2,
+                "vol": round(vol, 3),
+                "w": round(w, 1),
+                "cost": round(c, 2)
+            })
+            tot_w += w
+            tot_c += c
+
+    return {
+        "shell_temp": shell_t,
+        "heat_flux": flux,
+        "profile": profile_points,
+        "total_weight": round(tot_w, 1),
+        "total_cost": round(tot_c, 2),
+        "bom": bom,
+        "req_shell": bom[-1]["od"] if req.geometry.type == "cylinder" else "-"
+    }
+
+@app.get("/api/materials")
+def get_mats():
+    return CACHED_MATERIALS
+
+@app.get("/", response_class=HTMLResponse)
+def read_root():
+    try:
+        with open("dashboard.html", "r", encoding="utf-8") as f: return f.read()
+    except: return "<h1>Error: Missing dashboard.html</h1>"
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

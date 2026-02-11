@@ -1,0 +1,17 @@
+# Python sistemski fajlovi (ne trebaju serveru)
+venv/
+__pycache__/
+*.pyc
+
+# Baza podataka (server pravi svoju)
+*.db
+
+# Generisani fajlovi (rezultati koje ne zelimo da cuvamo u kodu)
+spec.xlsx
+r.pdf
+Report_*.pdf
+Specifikacija_*.xlsx
+molty-key.json
+.env.local
+# Operativni sistem smece
+.DS_Store
