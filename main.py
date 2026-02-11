@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Konfiguracija
 TDS_PATH = "tehnicki_listovi"
 DB_FILE = "molty.db"
 ROOT_FOLDER_ID = os.getenv("ROOT_FOLDER_ID", "1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN")
@@ -116,4 +117,5 @@ def simulate(r: SimReq):
     return {"shell_temp": round(shell_t, 1), "total_weight": round(tw, 1), "total_cost": round(tc, 1), "bom": bom}
 
 @app.get("/", response_class=HTMLResponse)
-def root(): return open("dashboard.html", encoding="utf-8").read()
+def root(): 
+    return open("dashboard.html", encoding="utf-8").read()
