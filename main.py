@@ -12,98 +12,112 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- IZMENA: Nova putanja i bolja dijagnostika ---
-PDF_FOLDER = os.path.join(os.getcwd(), "tds") 
+DB_FILE = "molty.db"
 
+# --- INIT DATABASE ---
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS projects
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, client TEXT, date TEXT, metal TEXT, total_weight REAL, total_cost REAL, data TEXT)''')
+    conn.commit(); conn.close()
+init_db()
+
+# --- HARDCODED DATA ---
+CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL KOSICE", "ARCELLOR MITTAL"]
+METALS_DB = {
+    "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
+    "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
+}
+
+# --- PAMETNO UCITAVANJE MATERIJALA ---
 def get_mats():
-    # Osnovni materijali
+    # 1. Osnovni materijali (uvek dostupni)
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    print(f"--- TRAZIM PDF-ove U: {PDF_FOLDER} ---") # Log za Render
+    # 2. Pokusaj da nadjes folder (bilo koje ime)
+    search_dirs = ["tds", "tehnicki_listovi", "."]
+    target_dir = None
     
-    if os.path.exists(PDF_FOLDER):
-        files = os.listdir(PDF_FOLDER)
-        print(f"--- NASAO FAJLOVA: {len(files)} ---")
-        for f in files:
-            print(f"Proveravam fajl: {f}")
+    print("--- ZAPOCINJEM POTRAGU ZA PDF-ovima ---")
+    
+    for d in search_dirs:
+        path = os.path.join(os.getcwd(), d)
+        if os.path.exists(path):
+            # Proveri ima li pdf-ova unutra
+            pdfs = [f for f in os.listdir(path) if f.lower().endswith(".pdf")]
+            if len(pdfs) > 0:
+                target_dir = path
+                print(f"✅ BINGO! Nasao materijale u: {d} ({len(pdfs)} fajlova)")
+                break
+    
+    # 3. Ako smo nasli folder, citaj
+    if target_dir:
+        for f in os.listdir(target_dir):
             if f.lower().endswith(".pdf"):
                 try:
-                    path = os.path.join(PDF_FOLDER, f)
-                    r = PyPDF2.PdfReader(path)
-                    # Pokusaj citanja teksta
+                    r = PyPDF2.PdfReader(os.path.join(target_dir, f))
                     if len(r.pages) > 0:
                         txt = r.pages[0].extract_text() or ""
-                        # Trazi gustinu
                         dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
                         den = 2300
                         if dm:
                             val = float(dm.group(1).replace(",", "."))
                             den = val * 1000 if val < 10 else val
                         
-                        # Dodaj materijal
-                        m_name = f[:-4].upper()
-                        mats.append({"name": m_name, "density": int(den), "lambda_val": 1.5, "price": 800})
-                        print(f"✅ UCITAN: {m_name}")
-                    else:
-                        print(f"❌ GRESKA {f}: Prazan PDF")
-                except Exception as e:
-                    print(f"❌ CRITICAL ERROR {f}: {str(e)}") # Ispisi pravu gresku!
+                        mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
+                        print(f"  -> Učitan: {f}")
+                except:
+                    print(f"  -> Greška kod fajla: {f}")
     else:
-        print("❌ GRESKA: Folder 'tds' ne postoji!")
+        print("⚠️ UPOZORENJE: Nisam nasao PDF folder. Koristim samo celik i vazduh.")
 
     return sorted(mats, key=lambda x: x["name"])
+
 # --- MODELS ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
 class SimReq(BaseModel):
     metal: str; target_temp: float; ambient_temp: float; layers: List[Layer]; geometry: dict
-    client: Optional[str] = "" # Dodato za bazu
+    client: Optional[str] = ""
 class ExpReq(BaseModel):
     bom: List[dict]; total_weight: float; total_cost: float; shell_temp: float; heat_flux: float; client: str
 
-# --- API ROUTES ---
-
+# --- ROUTES ---
 @app.get("/api/init")
 def init_data():
-    return {"materials": get_mats(), "metals": METALS_DB, "clients": CLIENTS_DB}
+    # OVO JE KLJUCNO: Try/Except da API nikad ne pukne skroz
+    try:
+        print(">>> POZVAN /api/init")
+        mats = get_mats()
+        print(f">>> VRACAM {len(mats)} MATERIJALA I {len(METALS_DB)} METALA")
+        return {"materials": mats, "metals": METALS_DB, "clients": CLIENTS_DB}
+    except Exception as e:
+        print(f"!!! CRITICAL ERROR IN INIT: {e}")
+        # Vrati bar nesto da frontend ne bude prazan
+        return {"materials": [], "metals": METALS_DB, "clients": ["ERROR"]}
 
-# NOVO: CUVANJE PROJEKTA
 @app.post("/api/db/save")
 def save_project(r: SimReq):
-    # Racunamo basic stats za pregled
-    w = sum([l.thickness * l.density for l in r.layers]) # Aproksimacija za brz prikaz
+    conn = sqlite3.connect(DB_FILE); c = conn.cursor()
+    w = sum([l.thickness * l.density for l in r.layers])
     cost = sum([l.price for l in r.layers])
-    
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
     c.execute("INSERT INTO projects (client, date, metal, total_weight, total_cost, data) VALUES (?, ?, ?, ?, ?, ?)",
               (r.client, datetime.now().strftime("%Y-%m-%d %H:%M"), r.metal, w, cost, json.dumps(r.dict())))
-    conn.commit()
-    last_id = c.lastrowid
-    conn.close()
+    conn.commit(); last_id = c.lastrowid; conn.close()
     return {"status": "saved", "id": last_id}
 
-# NOVO: LISTA PROJEKATA
 @app.get("/api/db/list")
 def list_projects():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT id, client, date, metal FROM projects ORDER BY id DESC")
-    rows = c.fetchall()
-    conn.close()
+    conn = sqlite3.connect(DB_FILE); conn.row_factory = sqlite3.Row; c = conn.cursor()
+    c.execute("SELECT id, client, date, metal FROM projects ORDER BY id DESC"); rows = c.fetchall(); conn.close()
     return rows
 
-# NOVO: UCITAVANJE
 @app.get("/api/db/load/{pid}")
 def load_project(pid: int):
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute("SELECT data FROM projects WHERE id=?", (pid,))
-    row = c.fetchone()
-    conn.close()
+    conn = sqlite3.connect(DB_FILE); conn.row_factory = sqlite3.Row; c = conn.cursor()
+    c.execute("SELECT data FROM projects WHERE id=?", (pid,)); row = c.fetchone(); conn.close()
     return json.loads(row['data']) if row else {}
 
 @app.post("/api/simulate")
@@ -111,8 +125,7 @@ def calc(r: SimReq):
     t_hot = r.target_temp; t_amb = r.ambient_temp
     temps = [t_hot]; curr = t_hot
     for _ in range(3):
-        total_r = 0.12
-        r_vals = []
+        total_r = 0.12; r_vals = []
         for i, l in enumerate(r.layers):
             t_mean = (temps[i] if i < len(temps) else t_hot) * 0.9 
             lam = (l.lambda_val or 1.0) * (1 + (t_mean/2000)*0.1)
@@ -125,13 +138,11 @@ def calc(r: SimReq):
     bom = []; acc_th = 0; cid = r.geometry['dim2']; tw = 0; tc = 0
     liquidus = METALS_DB.get(r.metal, 0)
     freeze_depth = -1
-    
     for i, l in enumerate(r.layers):
         if temps[i] >= liquidus and temps[i+1] <= liquidus:
             ratio = (temps[i] - liquidus) / (temps[i] - temps[i+1])
             freeze_depth = acc_th + (l.thickness * ratio)
         acc_th += l.thickness
-
         w = 0
         if r.geometry['type'] == 'cylinder':
             od = cid + 2*l.thickness
@@ -147,15 +158,12 @@ def calc(r: SimReq):
     if freeze_depth < 0: status = "CRITICAL (Proboj)"
     elif freeze_depth > (acc_th - bom[-1]['th']): status = "WARNING (Plašt)"
 
-    return {
-        "shell_temp": round(temps[-1], 1), "heat_flux": round(flux, 1),
+    return { "shell_temp": round(temps[-1], 1), "heat_flux": round(flux, 1),
         "profile": [{"pos": 0, "temp": t_hot}] + [{"pos": sum(x['th'] for x in bom[:i+1]), "temp": t} for i,t in enumerate(temps[1:])],
         "bom": bom, "total_weight": round(tw, 1), "total_cost": round(tc, 1),
         "liquidus": liquidus, "freeze_depth": round(freeze_depth, 1) if freeze_depth > 0 else "N/A", "safety": status,
-        "req_shell": round(cid) if r.geometry['type']=='cylinder' else "-"
-    }
+        "req_shell": round(cid) if r.geometry['type']=='cylinder' else "-" }
 
-# --- EXPORT RUTES (UNCHANGED) ---
 @app.post("/api/export-excel")
 def excel(d: ExpReq):
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Specifikacija"
@@ -168,12 +176,7 @@ def excel(d: ExpReq):
     for col_num, header in enumerate(headers, 1):
         cell = ws.cell(row=4, column=col_num); cell.value = header; cell.font = header_font; cell.fill = header_fill; cell.alignment = Alignment(horizontal='center'); cell.border = border
     for i, r in enumerate(d.bom, 1):
-        row = [i, r['name'], r['th'], r['temp'], r['w'], r['cost'] / (r['w']/1000) if r['w'] > 0 else 0]
-        ws.append(row)
-        for col in range(1, 7): 
-            ws.cell(row=4+i, column=col).border = border
-            if col == 6: ws.cell(row=4+i, column=col).fill = PatternFill(start_color='FFFFCC', fill_type='solid')
-    ws.append([]); ws.append(["UKUPNO:", "", "", "", d.total_weight, f"=SUM(F5:F{4+len(d.bom)})"])
+        ws.append([i, r['name'], r['th'], r['temp'], r['w'], r['cost'] / (r['w']/1000) if r['w'] > 0 else 0])
     wb.save("spec.xlsx"); return FileResponse("spec.xlsx", filename=f"Specifikacija_{d.client}.xlsx")
 
 @app.post("/api/export-pdf")
@@ -185,11 +188,11 @@ def pdf(d: ExpReq):
     pdf.set_font("Arial","",9)
     for r in d.bom:
         pdf.cell(80,7,r['name'][:35].encode('latin-1','replace').decode('latin-1'),1); pdf.cell(20,7,str(r['th']),1,0,"C"); pdf.cell(30,7,str(r['temp']),1,0,"C"); pdf.cell(30,7,str(r['w']),1,0,"R"); pdf.cell(30,7,str(r['cost']),1,1,"R")
-    pdf.ln(5); pdf.set_font("Arial","B",11); pdf.cell(0,10,f"TOTAL WEIGHT: {d.total_weight} kg",0,1); pdf.output("r.pdf"); return FileResponse("r.pdf", filename=f"Report_{d.client}.pdf")
+    pdf.output("r.pdf"); return FileResponse("r.pdf", filename=f"Report_{d.client}.pdf")
 
 @app.get("/", response_class=HTMLResponse)
 def root(): 
     if os.path.exists("dashboard.html"): return open("dashboard.html", encoding="utf-8").read()
-    return "Error"
+    return "<h1>Greska: Nema dashboard.html</h1>"
 
 if __name__ == "__main__": uvicorn.run(app, host="0.0.0.0", port=8000)
