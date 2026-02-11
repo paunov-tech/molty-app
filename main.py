@@ -12,11 +12,14 @@ from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- OVO JE JEDINA IZMENA: ---
-PDF_FOLDER = os.path.join(os.getcwd(), "tds") 
+# --- KONFIGURACIJA (SQLite + tvoj folder) ---
+PDF_FOLDER = os.path.join(os.getcwd(), "tehnicki_listovi")
 DB_FILE = "molty.db"
 
-# --- DATABASE INIT ---
+# --- GLOBALNA PROMENLJIVA ZA KESIRANJE ---
+CACHED_MATERIALS = [] 
+
+# --- DATABASE INIT (SQLite) ---
 def init_db():
     try:
         conn = sqlite3.connect(DB_FILE)
@@ -38,17 +41,22 @@ METALS_DB = {
     "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
 }
 
+# --- BRZO UCITAVANJE SA KESIRANJEM ---
 def get_mats():
-    # Osnovni materijali koji uvek moraju biti tu
+    global CACHED_MATERIALS
+    
+    # 1. Ako je vec ucitano, vrati odmah (0s)
+    if CACHED_MATERIALS:
+        return CACHED_MATERIALS
+
+    # 2. Prvo ucitavanje (Traje duze)
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    # Pokusaj citanja iz foldera
     if os.path.exists(PDF_FOLDER):
         for f in os.listdir(PDF_FOLDER):
             if f.lower().endswith(".pdf"):
                 try:
-                    # Citanje PDF-a (ako pukne, idemo dalje)
                     r = PyPDF2.PdfReader(os.path.join(PDF_FOLDER, f))
                     txt = r.pages[0].extract_text() or ""
                     dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
@@ -56,15 +64,15 @@ def get_mats():
                     if dm:
                         val = float(dm.group(1).replace(",", "."))
                         den = val * 1000 if val < 10 else val
-                    
                     mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
                 except:
-                    # Ako PDF ne valja, dodaj ga samo po imenu
-                    try:
-                        mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
+                    # Fallback
+                    try: mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
                     except: pass
-                    
-    return sorted(mats, key=lambda x: x["name"])
+    
+    # 3. Sacuvaj u memoriju
+    CACHED_MATERIALS = sorted(mats, key=lambda x: x["name"])
+    return CACHED_MATERIALS
 
 # --- MODELS ---
 class Layer(BaseModel):
@@ -123,7 +131,7 @@ def calc(r: SimReq):
     t_hot = r.target_temp; t_amb = r.ambient_temp
     temps = [t_hot]
     
-    # 1. Iteracija za Lambda (zavisnost od temperature)
+    # 1. Iteracija
     for _ in range(3):
         total_r = 0.12
         r_vals = []
@@ -149,13 +157,15 @@ def calc(r: SimReq):
         acc_th += l.thickness
 
         w = 0
+        dim1 = r.geometry.get('dim1', 1)
+        
         if r.geometry.get('type') == 'cylinder':
             od = cid + 2*l.thickness
-            w = math.pi * r.geometry.get('dim1', 1) * ((od/1000/2)**2 - (cid/1000/2)**2) * l.density
+            w = math.pi * dim1 * ((od/1000/2)**2 - (cid/1000/2)**2) * l.density
             bom.append({"name":l.material, "th":l.thickness, "temp":round(temps[i+1]), "id":round(cid), "od":round(od), "w":round(w,1), "cost":round(w/1000*l.price,1)})
             cid = od
         else:
-            w = r.geometry.get('dim1', 1) * (l.thickness/1000.0) * l.density
+            w = dim1 * (l.thickness/1000.0) * l.density
             bom.append({"name":l.material, "th":l.thickness, "temp":round(temps[i+1]), "id":"-", "od":"-", "w":round(w,1), "cost":round(w/1000*l.price,1)})
         tw += w; tc += w/1000*l.price
 
@@ -192,6 +202,6 @@ def pdf(d: ExpReq):
 @app.get("/", response_class=HTMLResponse)
 def root(): 
     if os.path.exists("dashboard.html"): return open("dashboard.html", encoding="utf-8").read()
-    return "Error: dashboard.html not found"
+    return "Error"
 
 if __name__ == "__main__": uvicorn.run(app, host="0.0.0.0", port=8000)
