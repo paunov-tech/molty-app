@@ -42,11 +42,22 @@ def load_materials_once():
     return CACHED_MATERIALS
 
 @app.get("/api/init")
+@app.get("/api/init")
 def init_data():
     return {
         "materials": load_materials_once(),
-        "metals": {"Celik (Low C)": 1510, "Bakar": 1085, "Aluminijum": 660},
-        "clients": ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR"]
+        "metals": {
+            "Čelik (Low C)": 1510,
+            "Sivi liv": 1150,
+            "Nodularni liv": 1180,
+            "Bakar": 1085,
+            "Mesing": 930,
+            "Bronza": 950,
+            "Aluminijum": 660,
+            "Al legura (Si)": 580,
+            "Cink": 419
+        },
+        "clients": ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR", "Slobodna zona", "Livnica Kikinda"]
     }
 
 @app.get("/", response_class=HTMLResponse)
