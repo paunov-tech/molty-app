@@ -14,6 +14,8 @@
         .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.3); transition: 0.5s ease; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body class="flex flex-col h-full">
@@ -43,7 +45,7 @@
             </div>
 
             <div class="flex-1 p-8 bg-[#010409] overflow-y-auto">
-                <div id="resBox" class="hidden space-y-6">
+                <div id="resBox" class="hidden space-y-6 animate-fade-in">
                     <div class="grid grid-cols-3 gap-6">
                         <div class="glass p-6 rounded-xl"><p class="text-xs text-gray-500 mb-1">TEMPERATURA OKLOPA</p><p id="res-t" class="text-4xl font-black text-orange-500">0°C</p></div>
                         <div class="glass p-6 rounded-xl"><p class="text-xs text-gray-400 mb-1">UKUPNA TEŽINA</p><p id="res-w" class="text-4xl font-black text-white">0 <span class="text-lg">kg/m²</span></p></div>
@@ -87,12 +89,24 @@
 
     <script>
         let MATS = [];
+
         window.onload = async () => {
-            const r = await fetch('/api/init'); const d = await r.json();
-            MATS = d.materials;
-            const ms = document.getElementById('metalSelect');
-            for(let m in d.metals) ms.innerHTML += `<option value="${m}">${m} (${d.metals[m]}°C)</option>`;
-            addLayer(); loadClients();
+            try {
+                const r = await fetch('/api/init');
+                const d = await r.json();
+                MATS = d.materials;
+                
+                const ms = document.getElementById('metalSelect');
+                ms.innerHTML = ""; // Clear existing
+                for(let m in d.metals) {
+                    ms.innerHTML += `<option value="${m}">${m} (${d.metals[m]}°C)</option>`;
+                }
+                
+                addLayer(); 
+                loadClients();
+            } catch (e) {
+                console.error("Inicijalizacija neuspešna:", e);
+            }
         };
 
         function switchTab(t) {
@@ -103,46 +117,79 @@
         }
 
         async function loadClients() {
-            const r = await fetch('/api/drive/test-scan'); const d = await r.json();
-            const sel = document.getElementById('clientSelect');
-            if(d.status==='success') d.found_clients.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+            try {
+                const r = await fetch('/api/drive/test-scan');
+                const d = await r.json();
+                const sel = document.getElementById('clientSelect');
+                if(d.status==='success') {
+                    sel.innerHTML = '<option value="">Izaberi klijenta...</option>';
+                    d.found_clients.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+                }
+            } catch (e) {
+                console.error("Greška pri učitavanju klijenata:", e);
+            }
         }
 
         async function scanArchive() {
             const fid = document.getElementById('clientSelect').value;
-            const r = await fetch(`/api/drive/scan-deep/${fid}`); const d = await r.json();
-            const tb = document.getElementById('docTable'); tb.innerHTML = '';
-            d.files.forEach(f => {
-                tb.innerHTML += `<tr class="hover:bg-[#161b22]">
-                    <td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[10px]">${f.godina}</span></td>
-                    <td class="text-blue-400 font-bold text-xs">${f.tip}</td>
-                    <td class="max-w-md truncate">${f.ime}</td>
-                    <td class="text-right p-4">
-                        <button class="bg-orange-500/10 text-orange-500 border border-orange-500/30 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-500/20">
-                            <i class="fa-solid fa-robot mr-1"></i> ANALIZIRAJ
-                        </button>
-                    </td>
-                </tr>`;
-            });
+            if(!fid) return alert("Izaberi klijenta prvo.");
+            
+            const tb = document.getElementById('docTable');
+            tb.innerHTML = '<tr><td colspan="4" class="p-4 text-center">Skeniranje u toku...</td></tr>';
+            
+            try {
+                const r = await fetch(`/api/drive/scan-deep/${fid}`);
+                const d = await r.json();
+                tb.innerHTML = '';
+                d.files.forEach(f => {
+                    tb.innerHTML += `<tr class="hover:bg-[#161b22] animate-fade-in">
+                        <td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[10px]">${f.godina}</span></td>
+                        <td class="text-blue-400 font-bold text-xs uppercase">${f.tip}</td>
+                        <td class="max-w-md truncate">${f.ime}</td>
+                        <td class="text-right p-4">
+                            <button onclick="runAiAnalysis('${f.id}')" class="bg-orange-500/10 text-orange-500 border border-orange-500/30 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-500/20 transition-all">
+                                <i class="fa-solid fa-robot mr-1"></i> ANALIZIRAJ
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+            } catch (e) {
+                tb.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-red-500">Greška pri skeniranju.</td></tr>';
+            }
         }
 
         function addLayer() {
-            const div = document.createElement('div'); div.className = 'glass p-3 relative group';
-            let opt = ''; MATS.forEach(m => opt += `<option value="${m.name}">${m.name}</option>`);
+            const layerList = document.getElementById('layerList');
+            const div = document.createElement('div');
+            div.className = 'glass p-3 relative group animate-fade-in';
+            
+            let opt = MATS.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+            
             div.innerHTML = `
-                <select onchange="upd(this)" class="input-cad text-left mb-2 text-blue-400 font-bold">${opt}</select>
+                <select onchange="upd(this)" class="input-cad text-left mb-2 text-blue-400 font-bold">
+                    ${opt}
+                </select>
                 <div class="grid grid-cols-2 gap-2">
-                    <div class="flex flex-col"><label class="text-[9px] text-gray-500 ml-1">DEBLJINA (mm)</label><input type="number" class="th input-cad" value="114"></div>
-                    <div class="flex flex-col"><label class="text-[9px] text-gray-500 ml-1">LAMBDA (W/mK)</label><input type="number" class="l input-cad opacity-50" readonly></div>
+                    <div class="flex flex-col">
+                        <label class="text-[9px] text-gray-500 ml-1">DEBLJINA (mm)</label>
+                        <input type="number" class="th input-cad" value="114">
+                    </div>
+                    <div class="flex flex-col">
+                        <label class="text-[9px] text-gray-500 ml-1">LAMBDA (W/mK)</label>
+                        <input type="number" class="l input-cad opacity-50" readonly>
+                    </div>
                 </div>`;
-            document.getElementById('layerList').appendChild(div);
+            layerList.appendChild(div);
             upd(div.querySelector('select'));
         }
 
         function upd(s) {
             const m = MATS.find(x => x.name === s.value);
-            s.parentElement.querySelector('.l').value = m.lambda_val;
-            s.parentElement.dataset.d = m.density; s.parentElement.dataset.p = m.price;
+            if(m) {
+                s.parentElement.querySelector('.l').value = m.lambda_val;
+                s.parentElement.dataset.d = m.density; 
+                s.parentElement.dataset.p = m.price;
+            }
         }
 
         async function calculate() {
@@ -156,47 +203,63 @@
                     price: parseFloat(d.dataset.p)
                 });
             });
-            const r = await fetch('/api/simulate', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ metal: "Celik", target_temp: 1500, ambient_temp: 30, layers })
-            });
-            const res = await r.json();
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('resBox').classList.remove('hidden');
-            document.getElementById('res-t').innerText = res.shell_temp + "°C";
-            document.getElementById('res-w').innerText = res.total_weight;
-            document.getElementById('res-c').innerText = res.total_cost.toLocaleString();
-            
-            let h = ''; let v = '';
-            const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5', '#f85149'];
-            res.bom.forEach((i, idx) => {
-                h += `<tr class="hover:bg-[#161b22]"><td class="p-4 font-bold text-white">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
-                v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}" title="${i.name}"></div>`;
-            });
-            document.getElementById('resTable').innerHTML = h;
-            document.getElementById('vizBar').innerHTML = v;
-        }
-        async function runAiAnalysis(fileId) {
-    // Vizuelni feedback da robot radi
-    const btn = event.target;
-    const originalContent = btn.innerHTML;
-    btn.innerHTML = '<i class="fa-solid fa-cog animate-spin"></i> ANALIZA...';
-    btn.disabled = true;
 
-    try {
-        const res = await fetch(`/api/drive/analyze-file/${fileId}`);
-        const data = await res.json();
-        
-        if(data.status === 'success') {
-            alert(`🤖 ROBOT IZVEŠTAJ:\n\nMaterijal: ${data.extracted.material}\nKoličina: ${data.extracted.weight} t\nCena: ${data.extracted.price} €`);
+            try {
+                const r = await fetch('/api/simulate', {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        metal: document.getElementById('metalSelect').value, 
+                        target_temp: 1500, 
+                        ambient_temp: 30, 
+                        layers: layers 
+                    })
+                });
+                const res = await r.json();
+                
+                document.getElementById('emptyState').classList.add('hidden');
+                document.getElementById('resBox').classList.remove('hidden');
+                document.getElementById('res-t').innerText = res.shell_temp + "°C";
+                document.getElementById('res-w').innerText = res.total_weight;
+                document.getElementById('res-c').innerText = res.total_cost.toLocaleString();
+                
+                let h = ''; let v = '';
+                const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5', '#f85149'];
+                res.bom.forEach((i, idx) => {
+                    h += `<tr class="hover:bg-[#161b22] animate-fade-in"><td class="p-4 font-bold text-white">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
+                    v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}" title="${i.name}"></div>`;
+                });
+                document.getElementById('resTable').innerHTML = h;
+                document.getElementById('vizBar').innerHTML = v;
+            } catch (e) {
+                alert("Greška u simulaciji.");
+            }
         }
-    } catch (e) {
-        console.error("Robot error:", e);
-    } finally {
-        btn.innerHTML = originalContent;
-        btn.disabled = false;
-    }
-}
+
+        async function runAiAnalysis(fileId) {
+            // Vizuelni feedback
+            const btn = event.target;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-cog animate-spin"></i> ROBOT...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/drive/analyze-file/${fileId}`);
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    alert(`🤖 ROBOT IZVEŠTAJ:\n\nMaterijal: ${data.extracted.material}\nKoličina: ${data.extracted.weight} t\nCena: ${data.extracted.price} €`);
+                } else {
+                    alert("Robot nije uspeo da očita podatke iz PDF-a.");
+                }
+            } catch (e) {
+                console.error("Robot error:", e);
+                alert("Sistemska greška pri analizi.");
+            } finally {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 </html>
