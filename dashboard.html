@@ -192,6 +192,44 @@
 
     <script>
         let MATS=[], METALS={}, LAST=null, CH=null;
+        <div class="card mt-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-folder-open"></i> G-Drive Komercijalna Arhiva</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            <div class="col-md-8">
+                <select id="driveClientSelect" class="form-select">
+                    <option value="">Učitavanje klijenata sa Drive-a...</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-success w-100" onclick="scanClientArchive()">
+                    <i class="fas fa-search"></i> Skeniraj Arhivu
+                </button>
+            </div>
+        </div>
+        
+        <div id="archiveLoader" class="text-center my-3 d-none">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p>AI skenira foldere, sačekajte...</p>
+        </div>
+
+        <div class="table-responsive mt-3">
+            <table class="table table-sm table-hover d-none" id="archiveTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Godina</th>
+                        <th>Tip</th>
+                        <th>Naziv dokumenta</th>
+                        <th>Akcija</th>
+                    </tr>
+                </thead>
+                <tbody id="archiveList"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
         // SIGURAN POTPIS (SA LINKOM ZA LOGO)
         const RADA_SIGNATURE = `
@@ -387,6 +425,64 @@ Best regards,`;
             if(CH) CH.destroy();
             CH = new Chart(document.getElementById('ch'), {type:'line', data:{labels:d.profile.map(p=>p.pos), datasets:[{data:d.profile.map(p=>p.temp), borderColor:'#58a6ff', borderWidth:2, pointRadius:0, fill:true}]}, options:{responsive:true, maintainAspectRatio:false, scales:{x:{grid:{color:'#30363d'}}, y:{grid:{color:'#30363d'}}}}});
         }
+        // 1. Funkcija koja popunjava listu klijenata pri učitavanju stranice
+async function loadDriveClients() {
+    try {
+        const res = await fetch('/api/drive/test-scan');
+        const data = await res.json();
+        const select = document.getElementById('driveClientSelect');
+        
+        if (data.status === 'success') {
+            select.innerHTML = '<option value="">Izaberi klijenta za skeniranje...</option>';
+            data.found_clients.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+            });
+        }
+    } catch (err) {
+        console.error("Greška pri učitavanju Drive-a:", err);
+    }
+}
+
+// 2. Funkcija koja poziva naš "Deep Scan"
+async function scanClientArchive() {
+    const folderId = document.getElementById('driveClientSelect').value;
+    if (!folderId) return alert("Izaberi klijenta!");
+
+    const loader = document.getElementById('archiveLoader');
+    const table = document.getElementById('archiveTable');
+    const list = document.getElementById('archiveList');
+
+    loader.classList.remove('d-none');
+    table.classList.add('d-none');
+    list.innerHTML = '';
+
+    try {
+        const res = await fetch(`/api/drive/scan-deep/${folderId}`);
+        const data = await res.json();
+
+        if (data.status === 'success' && data.files.length > 0) {
+            data.files.forEach(f => {
+                const row = `<tr>
+                    <td><span class="badge bg-secondary">${f.godina}</span></td>
+                    <td><small>${f.tip}</small></td>
+                    <td>${f.ime}</td>
+                    <td><a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" class="btn btn-sm btn-outline-primary">Otvori</a></td>
+                </tr>`;
+                list.innerHTML += row;
+            });
+            table.classList.remove('d-none');
+        } else {
+            alert("Nije pronađena nijedna faktura ili ponuda u standardnim folderima.");
+        }
+    } catch (err) {
+        alert("Greška pri skeniranju.");
+    } finally {
+        loader.classList.add('d-none');
+    }
+}
+
+// Pozovi učitavanje klijenata čim se stranica otvori
+window.addEventListener('DOMContentLoaded', loadDriveClients);
     </script>
 </body>
 </html>
