@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sr" class="dark">
+<html lang="sr">
 <head>
     <meta charset="UTF-8"><title>MOLTY PRO V3.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -10,46 +10,46 @@
         .tab-btn { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; color: #8b949e; }
         .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; background: #161b22; }
         .input-cad { background: #0d1117; border: 1px solid #30363d; color: white; padding: 6px; font-size: 12px; text-align: center; border-radius: 4px; width: 100%; }
-        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.3); }
+        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.3); transition: 0.5s; }
         ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
 </head>
 <body class="flex flex-col h-full">
-    <div class="h-14 border-b border-[#30363d] flex items-center justify-between px-6 bg-[#0d1117]">
+    <div class="h-14 border-b border-[#30363d] flex items-center justify-between px-6 bg-[#0d1117] shrink-0">
         <div class="flex items-center gap-8">
             <h1 class="text-xl font-bold text-white tracking-tighter">MOLTY<span class="text-blue-500">PRO</span></h1>
-            <div class="flex h-full">
+            <div class="flex">
                 <div id="t-tech" class="tab-btn active" onclick="switchTab('tech')">INŽENJERING</div>
                 <div id="t-comm" class="tab-btn" onclick="switchTab('comm')">KOMERCIJALA</div>
             </div>
         </div>
-        <div class="text-[10px] font-mono text-blue-400"><i class="fa-solid fa-circle animate-pulse text-green-500 mr-2"></i>OS V3.5 READY</div>
+        <div class="text-[10px] font-mono text-green-500 uppercase"><i class="fa-solid fa-circle animate-pulse mr-2"></i>System Online</div>
     </div>
 
     <div class="flex-1 flex overflow-hidden">
         <div id="view-tech" class="flex flex-1 overflow-hidden">
             <div class="w-80 border-r border-[#30363d] bg-[#0d1117] p-4 flex flex-col gap-4 overflow-y-auto">
                 <div class="glass p-3 rounded">
-                    <label class="text-[10px] text-gray-500 uppercase font-bold">Izbor Metala (Liquidus)</label>
+                    <label class="text-[10px] text-gray-500 uppercase font-bold">Metal (Liquidus)</label>
                     <select id="metalSelect" class="input-cad mt-1 text-left font-bold text-orange-400"></select>
                 </div>
-                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-xs font-bold shadow-lg hover:bg-[#2ea043]">+ DODAJ SLOJ OBLOGE</button>
+                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-xs font-bold">+ DODAJ SLOJ OBLOGE</button>
                 <div id="layerList" class="space-y-2 flex-1"></div>
-                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-sm mt-4">POKRENI SIMULACIJU</button>
+                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-sm mt-4">SIMULACIJA</button>
             </div>
             <div class="flex-1 p-8 bg-[#010409] overflow-y-auto">
                 <div id="resBox" class="hidden space-y-6">
                     <div class="grid grid-cols-3 gap-6">
                         <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">OKLOP PEĆI</p><p id="res-t" class="text-4xl font-bold text-orange-500">0°C</p></div>
-                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">UKUPNA TEŽINA</p><p id="res-w" class="text-4xl font-bold text-white">0 kg</p></div>
-                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">UKUPNA CENA</p><p id="res-c" class="text-4xl font-bold text-blue-400">0 €</p></div>
+                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">KG / M²</p><p id="res-w" class="text-4xl font-bold text-white">0</p></div>
+                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">CENA / M²</p><p id="res-c" class="text-4xl font-bold text-blue-400">0 €</p></div>
                     </div>
                     <div class="h-32 w-full glass rounded-xl overflow-hidden flex" id="vizBar"></div>
                     <div class="glass rounded-xl overflow-hidden">
-                        <table class="w-full text-sm text-left"><thead class="bg-[#161b22] text-gray-400"><tr><th class="p-4">MATERIJAL</th><th class="text-right">mm</th><th class="text-right">kg/m²</th><th class="text-right p-4">€</th></tr></thead><tbody id="resTable" class="divide-y divide-[#30363d]"></tbody></table>
+                        <table class="w-full text-sm text-left"><thead class="bg-[#161b22] text-gray-400"><tr><th class="p-4">MATERIJAL</th><th class="text-right">mm</th><th class="text-right">kg</th><th class="text-right p-4">€</th></tr></thead><tbody id="resTable" class="divide-y divide-[#30363d]"></tbody></table>
                     </div>
                 </div>
-                <div id="emptyState" class="h-full flex flex-col items-center justify-center opacity-20"><i class="fa-solid fa-industry text-9xl mb-4"></i><p>Nema aktivnih proračuna.</p></div>
+                <div id="emptyState" class="h-full flex flex-col items-center justify-center opacity-20"><i class="fa-solid fa-industry text-9xl mb-4"></i><p>Spreman za proračun.</p></div>
             </div>
         </div>
 
@@ -57,13 +57,10 @@
             <div class="glass p-6 rounded-2xl flex flex-col h-full border-blue-900/20">
                 <div class="flex gap-4 mb-6 shrink-0">
                     <select id="clientSelect" class="bg-[#0d1117] border border-[#30363d] text-white p-3 rounded-lg flex-1 font-bold text-lg"></select>
-                    <button onclick="scanArchive()" class="bg-green-600 text-white px-10 py-3 rounded-lg font-bold hover:bg-green-500">SKENIRAJ</button>
+                    <button onclick="scanArchive()" class="bg-green-600 text-white px-10 py-3 rounded-lg font-bold">SKENIRAJ</button>
                 </div>
                 <div class="flex-1 overflow-y-auto border border-[#30363d] rounded-xl bg-[#0d1117]">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-[#161b22] sticky top-0 text-gray-400 uppercase text-[10px]"><tr><th class="p-4">GODINA</th><th>TIP</th><th>DOKUMENT</th><th class="text-right p-4">ROBOT</th></tr></thead>
-                        <tbody id="docTable" class="divide-y divide-[#30363d]"></tbody>
-                    </table>
+                    <table class="w-full text-sm text-left"><thead class="bg-[#161b22] sticky top-0 text-gray-400 uppercase text-[10px]"><tr><th class="p-4">GODINA</th><th>TIP</th><th>DOKUMENT</th><th class="text-right p-4">AI ANALIZA</th></tr></thead><tbody id="docTable" class="divide-y divide-[#30363d]"></tbody></table>
                 </div>
             </div>
         </div>
@@ -94,21 +91,17 @@
 
         async function scanArchive() {
             const fid = document.getElementById('clientSelect').value;
-            const tb = document.getElementById('docTable'); tb.innerHTML = '<tr><td colspan="4" class="p-10 text-center">Pretražujem G-Drive...</td></tr>';
+            const tb = document.getElementById('docTable'); tb.innerHTML = '<tr><td colspan="4" class="p-10 text-center animate-pulse">Pretražujem G-Drive...</td></tr>';
             const r = await fetch(`/api/drive/scan-deep/${fid}`); const d = await r.json();
             tb.innerHTML = '';
             d.files.forEach(f => {
-                tb.innerHTML += `<tr class="hover:bg-[#161b22] border-b border-[#30363d]">
-                    <td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[10px]">${f.godina}</span></td>
-                    <td class="text-blue-400 font-bold">${f.tip}</td><td>${f.ime}</td>
-                    <td class="text-right p-4"><button onclick="runAi('${f.id}')" class="text-orange-500 font-bold border border-orange-500/30 px-3 py-1 rounded text-xs hover:bg-orange-500/10">ANALIZIRAJ</button></td>
-                </tr>`;
+                tb.innerHTML += `<tr class="hover:bg-[#161b22]"><td class="p-4">${f.godina}</td><td class="text-blue-400 font-bold">${f.tip}</td><td>${f.ime}</td><td class="text-right p-4"><button onclick="runAi('${f.id}')" class="text-orange-500 font-bold border border-orange-500/20 px-3 py-1 rounded hover:bg-orange-500/10">ANALIZIRAJ</button></td></tr>`;
             });
         }
 
         async function runAi(id) {
             const r = await fetch(`/api/drive/analyze-file/${id}`); const d = await r.json();
-            if(d.status==='success') alert(`🤖 ROBOT IZVEŠTAJ:\n\nMaterijal: ${d.extracted.material}\nTonaža: ${d.extracted.weight} t\nCena: ${d.extracted.price} €`);
+            if(d.status==='success') alert(`AI ROBOT:\nMaterijal: ${d.extracted.material}\nTonaža: ${d.extracted.weight} t\nCena: ${d.extracted.price} €`);
         }
 
         function addLayer() {
