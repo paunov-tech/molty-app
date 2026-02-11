@@ -10,6 +10,10 @@ from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
+# NOVO: Importi za Google Drive
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
@@ -20,6 +24,9 @@ DB_FILE = "molty.db"
 
 # Globalna promenljiva za keširanje materijala
 CACHED_MATERIALS = [] 
+
+# Root folder ID tvojih klijenata
+ROOT_FOLDER_ID = "1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN"
 
 # --- DATABASE INIT ---
 def init_db():
@@ -40,13 +47,26 @@ init_db()
 # --- PODACI ---
 CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL KOSICE", "ARCELLOR MITTAL"]
 
-# OVDE JE BILA GREŠKA - SADA JE ZATVORENA ZAGRADA
 METALS_DB = {
     "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
     "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
 }
 
 # --- FUNKCIJE ---
+
+# NOVO: Google Drive konektor (koristi Environment Grupu sa Rendera)
+def get_drive_service():
+    try:
+        creds_json = os.getenv("GOOGLE_CREDENTIALS")
+        if not creds_json:
+            return None
+        info = json.loads(creds_json)
+        creds = service_account.Credentials.from_service_account_info(info)
+        return build('drive', 'v3', credentials=creds)
+    except Exception as e:
+        print(f"Drive Auth Error: {e}")
+        return None
+
 def get_mats():
     global CACHED_MATERIALS
     if CACHED_MATERIALS:
@@ -55,7 +75,6 @@ def get_mats():
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    # Detekcija foldera
     possible_folders = [PDF_FOLDER_NAME, "tds", "tehnicki_listovi", "TDS"]
     found_folder = None
     for f in possible_folders:
@@ -92,6 +111,22 @@ class ExpReq(BaseModel):
     bom: List[dict]; total_weight: float; total_cost: float; shell_temp: float; heat_flux: float; client: str
 
 # --- API RUTE ---
+
+# NOVO: Testna ruta za skeniranje Drive-a
+@app.get("/api/drive/test-scan")
+def test_drive_scan():
+    service = get_drive_service()
+    if not service:
+        return {"status": "error", "message": "Google credentials nisu pronadjeni u Environment Grupi"}
+    
+    try:
+        query = f"'{ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'"
+        results = service.files().list(q=query, fields="files(id, name)").execute()
+        items = results.get('files', [])
+        return {"status": "success", "found_clients": items}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.get("/api/init")
 def init_data():
     return {"materials": get_mats(), "metals": METALS_DB, "clients": CLIENTS_DB}
