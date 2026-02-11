@@ -40,23 +40,49 @@ METALS_DB = {
 }
 
 def get_mats():
+    # 1. DEFAULT LISTA (Ovo uvek radi)
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
-    if os.path.exists(PDF_FOLDER):
-        for f in os.listdir(PDF_FOLDER):
+    
+    # 2. TRAZENJE FOLDERA (Pametna pretraga)
+    possible_folders = ["tds", "tehnicki_listovi", "TDS", "Tehnicki_listovi"]
+    found_folder = None
+    
+    for f in possible_folders:
+        path = os.path.join(os.getcwd(), f)
+        if os.path.exists(path):
+            found_folder = path
+            break
+            
+    # 3. UCITAVANJE PDF-ova
+    if found_folder:
+        print(f"Ucitavam PDF-ove iz: {found_folder}")
+        for f in os.listdir(found_folder):
             if f.lower().endswith(".pdf"):
                 try:
-                    r = PyPDF2.PdfReader(os.path.join(PDF_FOLDER, f))
+                    # Pokusaj citanja PDF-a
+                    pdf_path = os.path.join(found_folder, f)
+                    r = PyPDF2.PdfReader(pdf_path)
                     txt = r.pages[0].extract_text() or ""
+                    
+                    # Trazimo gustinu (Regex)
                     dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
-                    den = 2300
+                    den = 2300 # Default gustina
                     if dm:
                         val = float(dm.group(1).replace(",", "."))
                         den = val * 1000 if val < 10 else val
-                    mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
-                except: pass
+                    
+                    # Dodaj u listu
+                    clean_name = f[:-4].replace("_", " ").upper()
+                    # Skrati ime ako je predugacko (za lepsi ispis)
+                    if len(clean_name) > 50: clean_name = clean_name[:47] + "..."
+                    
+                    mats.append({"name": clean_name, "density": int(den), "lambda_val": 1.5, "price": 800})
+                except:
+                    # Ako pukne jedan fajl, samo ga preskoci, ne rusi aplikaciju
+                    pass
+    
     return sorted(mats, key=lambda x: x["name"])
-
 # --- MODELS ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
