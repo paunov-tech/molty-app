@@ -10,23 +10,21 @@ from datetime import datetime
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 
-# NOVO: Importi za Google Drive
+# Google Drive biblioteke
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# --- PAMETNA KONFIGURACIJA (KOČNICE) ---
+# --- KONFIGURACIJA ---
 PDF_FOLDER_NAME = os.getenv("PDF_FOLDER", "tehnicki_listovi")
 PDF_FOLDER = os.path.join(os.getcwd(), PDF_FOLDER_NAME)
 DB_FILE = "molty.db"
+ROOT_FOLDER_ID = "1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN"
 
 # Globalna promenljiva za keširanje materijala
 CACHED_MATERIALS = [] 
-
-# Root folder ID tvojih klijenata
-ROOT_FOLDER_ID = "1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN"
 
 # --- DATABASE INIT ---
 def init_db():
@@ -44,17 +42,8 @@ def init_db():
 
 init_db()
 
-# --- PODACI ---
-CLIENTS_DB = ["METALFER STEEL MILL", "HBIS GROUP", "ZIJIN BOR COPPER", "US STEEL KOSICE", "ARCELLOR MITTAL"]
+# --- POMOĆNE FUNKCIJE ---
 
-METALS_DB = {
-    "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
-    "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
-}
-
-# --- FUNKCIJE ---
-
-# NOVO: Google Drive konektor (koristi Environment Grupu sa Rendera)
 def get_drive_service():
     try:
         creds_json = os.getenv("GOOGLE_CREDENTIALS")
@@ -107,68 +96,49 @@ class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
 class SimReq(BaseModel):
     metal: str; target_temp: float; ambient_temp: float; layers: List[Layer]; geometry: dict; client: Optional[str] = ""
-class ExpReq(BaseModel):
-    bom: List[dict]; total_weight: float; total_cost: float; shell_temp: float; heat_flux: float; client: str
 
 # --- API RUTE ---
 
-# NOVO: Testna ruta za skeniranje Drive-a
+@app.get("/api/init")
+def init_data():
+    return {"materials": get_mats(), "metals": {
+        "Celik (Low C)": 1510, "Sivi Liv": 1200, "Nodularni Liv": 1150,
+        "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
+    }, "clients": ["METALFER", "HBIS GROUP", "ZIJIN BOR", "US STEEL", "ARCELLOR MITTAL"]}
+
+# DRIVE: Osnovni scan (Klijenti)
 @app.get("/api/drive/test-scan")
 def test_drive_scan():
     service = get_drive_service()
-    if not service:
-        return {"status": "error", "message": "Google credentials nisu pronadjeni u Environment Grupi"}
+    if not service: return {"status": "error", "message": "Auth error"}
+    query = f"'{ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'"
+    results = service.files().list(q=query, fields="files(id, name)").execute().get('files', [])
+    return {"status": "success", "found_clients": results}
+
+# DRIVE: Duboki scan (Fakture po klijentu)
+@app.get("/api/drive/scan-deep/{folder_id}")
+def scan_deep(folder_id: str):
+    service = get_drive_service()
+    if not service: return {"status": "error", "message": "Auth error"}
     
-    try:
-        query = f"'{ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'"
-        results = service.files().list(q=query, fields="files(id, name)").execute()
-        items = results.get('files', [])
-        return {"status": "success", "found_clients": items}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@app.get("/api/init")
-def init_data():
-    return {"materials": get_mats(), "metals": METALS_DB, "clients": CLIENTS_DB}
-
-@app.post("/api/db/save")
-def save_project(r: SimReq):
-    try:
-        w = sum([l.thickness * l.density for l in r.layers])
-        cost = sum([l.price for l in r.layers])
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute("INSERT INTO projects (client, date, metal, total_weight, total_cost, data) VALUES (?, ?, ?, ?, ?, ?)",
-                  (r.client, datetime.now().strftime("%Y-%m-%d %H:%M"), r.metal, w, cost, json.dumps(r.dict())))
-        conn.commit()
-        lid = c.lastrowid
-        conn.close()
-        return {"status": "saved", "id": lid}
-    except: return {"status": "error"}
-
-@app.get("/api/db/list")
-def list_projects():
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT id, client, date, metal FROM projects ORDER BY id DESC")
-        rows = c.fetchall()
-        conn.close()
-        return rows
-    except: return []
-
-@app.get("/api/db/load/{pid}")
-def load_project(pid: int):
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT data FROM projects WHERE id=?", (pid,))
-        row = c.fetchone()
-        conn.close()
-        return json.loads(row['data']) if row else {}
-    except: return {}
+    # 1. Tražimo godine (podfoldere klijenta)
+    q_years = f"'{folder_id}' in parents and mimeType = 'application/vnd.google-apps.folder'"
+    years = service.files().list(q=q_years, fields="files(id, name)").execute().get('files', [])
+    
+    all_files = []
+    for year in years:
+        # 2. Tražimo foldere Fakture/Ponude
+        q_docs = f"'{year['id']}' in parents and (name contains 'Fakture' or name contains 'Racuni' or name contains 'Ponude')"
+        doc_folders = service.files().list(q=q_docs, fields="files(id, name)").execute().get('files', [])
+        
+        for df in doc_folders:
+            # 3. Izlistavamo PDF-ove
+            q_pdfs = f"'{df['id']}' in parents and mimeType = 'application/pdf'"
+            pdfs = service.files().list(q=q_pdfs, fields="files(id, name)").execute().get('files', [])
+            for p in pdfs:
+                all_files.append({"godina": year['name'], "tip": df['name'], "ime": p['name'], "id": p['id']})
+    
+    return {"status": "success", "count": len(all_files), "files": all_files}
 
 @app.post("/api/simulate")
 def calc(r: SimReq):
@@ -186,45 +156,18 @@ def calc(r: SimReq):
         curr = t_hot; temps = [curr]
         for rv in r_vals: curr -= flux * rv; temps.append(curr)
 
-    bom = []; acc_th = 0; cid = r.geometry.get('dim2', 0); tw = 0; tc = 0
-    liquidus = METALS_DB.get(r.metal, 0)
-    freeze_depth = -1
+    bom = []; tw = 0; tc = 0
     for i, l in enumerate(r.layers):
-        if i+1 < len(temps):
-            if temps[i] >= liquidus and temps[i+1] <= liquidus:
-                ratio = (temps[i] - liquidus) / (temps[i] - temps[i+1])
-                freeze_depth = acc_th + (l.thickness * ratio)
-        acc_th += l.thickness
-        w = 0
-        dim1 = r.geometry.get('dim1', 1)
-        if r.geometry.get('type') == 'cylinder':
-            od = cid + 2*l.thickness
-            w = math.pi * dim1 * ((od/1000/2)**2 - (cid/1000/2)**2) * l.density
-            bom.append({"name":l.material, "th":l.thickness, "temp":round(temps[i+1]), "id":round(cid), "od":round(od), "w":round(w,1), "cost":round(w/1000*l.price,1)})
-            cid = od
-        else:
-            w = dim1 * (l.thickness/1000.0) * l.density
-            bom.append({"name":l.material, "th":l.thickness, "temp":round(temps[i+1]), "id":"-", "od":"-", "w":round(w,1), "cost":round(w/1000*l.price,1)})
+        w = (l.thickness/1000.0) * l.density # Pojednostavljeno za ravan zid
+        bom.append({"name":l.material, "th":l.thickness, "temp":round(temps[i+1]), "w":round(w,1), "cost":round(w/1000*l.price,1)})
         tw += w; tc += w/1000*l.price
 
-    status = "SAFE"
-    if freeze_depth < 0: status = "CRITICAL (Proboj)"
-    elif freeze_depth > (acc_th - (bom[-1]['th'] if bom else 0)): status = "WARNING (Plašt)"
-
-    return {
-        "shell_temp": round(temps[-1], 1), "heat_flux": round(flux, 1),
-        "profile": [{"pos": 0, "temp": t_hot}] + [{"pos": sum(x['th'] for x in bom[:i+1]), "temp": t} for i,t in enumerate(temps[1:])],
-        "bom": bom, "total_weight": round(tw, 1), "total_cost": round(tc, 1),
-        "liquidus": liquidus, "freeze_depth": round(freeze_depth, 1) if freeze_depth > 0 else -1, 
-        "safety": status,
-        "req_shell": round(cid) if r.geometry.get('type')=='cylinder' else "-"
-    }
+    return {"shell_temp": round(temps[-1], 1), "bom": bom, "total_weight": round(tw, 1), "total_cost": round(tc, 1)}
 
 @app.get("/", response_class=HTMLResponse)
 def root(): 
     if os.path.exists("dashboard.html"): return open("dashboard.html", encoding="utf-8").read()
-    return "Error: dashboard.html not found"
+    return "MOLTY PRO API LIVE"
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
