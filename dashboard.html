@@ -3,199 +3,281 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MOLTY | Final System</title>
+    <title>MOLTY PRO | Thermal Engineering</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #111; color: white; font-family: sans-serif; padding: 20px; }
-        .box { background: #222; padding: 20px; border-radius: 10px; border: 1px solid #444; margin-bottom: 20px; }
-        input, select { background: #333; color: white; border: 1px solid #555; padding: 8px; width: 100%; border-radius: 5px; }
-        .btn { background: #f97316; color: white; font-weight: bold; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; }
-        .btn:hover { background: #ea580c; }
-        .result-val { font-size: 24px; font-weight: bold; font-family: monospace; }
-        .row { display: flex; gap: 10px; margin-bottom: 10px; }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: monospace; }
+        .input-group { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; }
+        label { display: block; color: #94a3b8; font-size: 0.75rem; margin-bottom: 5px; }
+        input, select { width: 100%; background: #0f172a; border: 1px solid #475569; color: white; padding: 8px; border-radius: 4px; }
+        .btn-calc { background: linear-gradient(90deg, #ea580c, #c2410c); width: 100%; padding: 12px; font-weight: bold; border-radius: 6px; margin-top: 10px; }
+        .btn-calc:hover { opacity: 0.9; }
     </style>
 </head>
-<body>
+<body class="p-4 max-w-7xl mx-auto">
 
-    <h1 class="text-2xl font-bold mb-5 text-orange-500">MOLTY PRODUCTION v3.0</h1>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-orange-500">MOLTY <span class="text-white text-sm">ADVANCED GEOMETRY</span></h1>
+        <div id="status" class="text-xs text-green-500">● System Ready</div>
+    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <div class="box">
-            <h2 class="text-xl mb-4 text-gray-400">1. Parametri</h2>
+        <div class="lg:col-span-4 space-y-4">
             
-            <label class="text-sm">Metalna Legura</label>
-            <select id="sim-metal" class="mb-4"></select>
-            
-            <label class="text-sm">Ciljna Temperatura (°C)</label>
-            <input type="number" id="sim-temp" value="1600" class="mb-4">
-            
-            <label class="text-sm">Ambijent (°C)</label>
-            <input type="number" id="sim-amb" value="25" class="mb-6">
+            <div class="input-group border-l-4 border-blue-500">
+                <h3 class="text-white font-bold mb-3">1. GEOMETRIJA OBJEKTA</h3>
+                
+                <label>Tip Objekta</label>
+                <select id="geo-type" onchange="toggleGeo()">
+                    <option value="flat">Ravan Zid (Peć/Zid)</option>
+                    <option value="cylinder">Cilindar (Lonac/Cev)</option>
+                </select>
 
-            <hr class="border-gray-700 mb-4">
-            
-            <div id="layers-list"></div>
-            
-            <button onclick="addLayerUI()" class="text-sm text-gray-400 underline mb-4">+ Dodaj sloj</button>
-            <button onclick="runSimulation()" class="btn">POKRENI SIMULACIJU 🚀</button>
-        </div>
+                <div id="dim-flat" class="mt-3">
+                    <label>Površina Zida (m²)</label>
+                    <input type="number" id="area-m2" value="10">
+                </div>
 
-        <div class="box md:col-span-2">
-            <h2 class="text-xl mb-4 text-gray-400">2. Rezultati</h2>
-            
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="p-3 bg-gray-800 rounded">
-                    <div class="text-xs text-gray-500">Temp. Plašta</div>
-                    <div id="out-shell" class="result-val text-white">0 °C</div>
-                </div>
-                <div class="p-3 bg-gray-800 rounded">
-                    <div class="text-xs text-gray-500">Toplotni Fluks</div>
-                    <div id="out-flux" class="result-val text-orange-400">0 W/m²</div>
-                </div>
-                <div class="p-3 bg-gray-800 rounded">
-                    <div class="text-xs text-gray-500">Tačka Likvidusa</div>
-                    <div id="out-liq" class="result-val text-red-500">---</div>
-                </div>
-                <div class="p-3 bg-gray-800 rounded">
-                    <div class="text-xs text-gray-500">Ukupna Cena</div>
-                    <div id="out-cost" class="result-val text-green-500">0 €</div>
+                <div id="dim-cyl" class="mt-3 hidden">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label>Visina/Dužina (m)</label>
+                            <input type="number" id="cyl-height" value="3.5">
+                        </div>
+                        <div>
+                            <label>Spoljni Prečnik (mm)</label>
+                            <input type="number" id="cyl-dia" value="3000">
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div style="height: 300px; width: 100%;">
-                <canvas id="myChart"></canvas>
+            <div class="input-group border-l-4 border-orange-500">
+                <h3 class="text-white font-bold mb-3">2. PROCES</h3>
+                <label>Metal / Legura</label>
+                <select id="metal-select"></select>
+                
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <div>
+                        <label>Temp. Metala (°C)</label>
+                        <input type="number" id="t-hot" value="1600">
+                    </div>
+                    <div>
+                        <label>Ambijent (°C)</label>
+                        <input type="number" id="t-amb" value="25">
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-group border-l-4 border-gray-500">
+                <h3 class="text-white font-bold mb-3">3. VATROSTALNI SLOJEVI</h3>
+                <div id="layers-container" class="space-y-2"></div>
+                <button onclick="addLayerUI()" class="text-xs text-blue-400 mt-2 hover:underline">+ Dodaj sloj</button>
+            </div>
+
+            <button onclick="runSim()" class="btn-calc">IZRAČUNAJ 🚀</button>
+        </div>
+
+        <div class="lg:col-span-8 space-y-6">
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                    <div class="text-gray-400 text-xs">Temp. Plašta</div>
+                    <div class="text-2xl font-bold text-white"><span id="res-shell">0</span> °C</div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                    <div class="text-gray-400 text-xs">Toplotni Fluks</div>
+                    <div class="text-2xl font-bold text-orange-500"><span id="res-flux">0</span> W/m²</div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                    <div class="text-gray-400 text-xs">Ukupna Težina</div>
+                    <div class="text-2xl font-bold text-blue-500"><span id="res-weight">0</span> kg</div>
+                </div>
+                <div class="bg-slate-800 p-4 rounded border border-slate-700">
+                    <div class="text-gray-400 text-xs">Cena Materijala</div>
+                    <div class="text-2xl font-bold text-green-500"><span id="res-cost">0</span> €</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded border border-slate-700 overflow-hidden">
+                <table class="w-full text-sm text-left">
+                    <thead class="bg-slate-900 text-gray-400">
+                        <tr>
+                            <th class="p-3">Sloj</th>
+                            <th class="p-3">Debljina</th>
+                            <th class="p-3">Temp (Hladna str.)</th>
+                            <th class="p-3">Težina</th>
+                            <th class="p-3">Cena</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bom-body" class="text-slate-200"></tbody>
+                </table>
+            </div>
+
+            <div class="bg-slate-800 p-2 rounded border border-slate-700 h-80">
+                <canvas id="mainChart"></canvas>
+            </div>
+            
+            <div class="text-right text-xs text-gray-600 mt-2">
+                Liquidus Limit: <span id="liq-limit" class="text-red-500 font-bold">---</span> °C
             </div>
         </div>
     </div>
 
     <script>
-        let MATERIALS = [];
+        let MATS = [];
         let CHART = null;
 
-        // 1. UČITAVANJE PRI STARTU
-        window.onload = async function() {
+        // INICIJALIZACIJA
+        window.onload = async () => {
             try {
-                const res = await fetch('/api/init');
-                if(!res.ok) throw new Error("API nedostupan");
-                const data = await res.json();
-                
-                MATERIALS = data.materials; // Čuvamo materijale
+                const r = await fetch('/api/init');
+                const d = await r.json();
+                MATS = d.materials;
                 
                 // Popuni metale
-                const sel = document.getElementById('sim-metal');
-                sel.innerHTML = "";
-                for (const [key, val] of Object.entries(data.metals)) {
-                    sel.innerHTML += `<option value="${key}">${key} (T.top: ${val}°C)</option>`;
-                }
-
-                addLayerUI(); // Dodaj prvi sloj
-            } catch (e) {
-                alert("Greška: Server se još budi. Osveži za 30 sekundi.");
-                console.error(e);
-            }
+                const sel = document.getElementById('metal-select');
+                for(let m in d.metals) sel.innerHTML += `<option value="${m}">${m}</option>`;
+                
+                addLayerUI(); // Prvi sloj
+            } catch(e) { console.error(e); }
         };
 
-        // 2. FUNKCIJA ZA DODAVANJE SLOJEVA U UI
-        function addLayerUI() {
-            const container = document.getElementById('layers-list');
-            const div = document.createElement('div');
-            div.className = "row";
-            
-            let options = MATERIALS.map(m => `<option value="${m.name}" data-lam="${m.lambda_val}" data-den="${m.density}" data-price="${m.price}">${m.name}</option>`).join('');
-            
-            div.innerHTML = `
-                <select class="layer-select" style="flex:2">${options}</select>
-                <input type="number" class="layer-th" value="100" style="flex:1" placeholder="mm">
-            `;
-            container.appendChild(div);
+        // UI LOGIKA ZA GEOMETRIJU
+        function toggleGeo() {
+            const type = document.getElementById('geo-type').value;
+            if(type === 'cylinder') {
+                document.getElementById('dim-flat').classList.add('hidden');
+                document.getElementById('dim-cyl').classList.remove('hidden');
+            } else {
+                document.getElementById('dim-flat').classList.remove('hidden');
+                document.getElementById('dim-cyl').classList.add('hidden');
+            }
         }
 
-        // 3. GLAVNA FUNKCIJA KOJA SALJE PODATKE NA SERVER
-        async function runSimulation() {
-            const btn = document.querySelector('button[onclick="runSimulation()"]');
-            btn.innerText = "RAČUNAM...";
-            
-            // Skupljamo podatke iz HTML-a
-            const layersData = [];
-            document.querySelectorAll('#layers-list .row').forEach(row => {
-                const sel = row.querySelector('.layer-select');
-                const th = row.querySelector('.layer-th');
+        // DODAVANJE SLOJEVA
+        function addLayerUI() {
+            const div = document.createElement('div');
+            div.className = "flex gap-2 layer-row";
+            let opts = MATS.map(m => `<option value="${m.name}" data-lam="${m.lambda_val}" data-den="${m.density}" data-price="${m.price}">${m.name}</option>`).join('');
+            div.innerHTML = `
+                <select class="l-mat text-xs w-2/3">${opts}</select>
+                <input type="number" class="l-th text-xs w-1/3" value="100" placeholder="mm">
+            `;
+            document.getElementById('layers-container').appendChild(div);
+        }
+
+        // GLAVNA FUNKCIJA
+        async function runSim() {
+            const layers = [];
+            document.querySelectorAll('.layer-row').forEach(r => {
+                const sel = r.querySelector('.l-mat');
                 const opt = sel.options[sel.selectedIndex];
-                
-                layersData.push({
+                layers.push({
                     material: sel.value,
-                    thickness: parseFloat(th.value),
+                    thickness: parseFloat(r.querySelector('.l-th').value),
                     lambda_val: parseFloat(opt.dataset.lam),
                     density: parseFloat(opt.dataset.den),
                     price: parseFloat(opt.dataset.price)
                 });
             });
 
+            // PRIPREMA GEOMETRIJE ZA BACKEND
+            const gType = document.getElementById('geo-type').value;
+            let geom = { type: gType };
+            
+            if(gType === 'cylinder') {
+                // Za cilindar šaljemo visinu kao dim1 i prečnik
+                geom.dim1 = parseFloat(document.getElementById('cyl-height').value);
+                geom.diameter = parseFloat(document.getElementById('cyl-dia').value);
+            } else {
+                // Za ravan zid šaljemo površinu kao dim1
+                geom.dim1 = parseFloat(document.getElementById('area-m2').value);
+            }
+
             const payload = {
-                metal: document.getElementById('sim-metal').value,
-                target_temp: parseFloat(document.getElementById('sim-temp').value),
-                ambient_temp: parseFloat(document.getElementById('sim-amb').value),
-                layers: layersData,
-                geometry: { dim1: 1.0 }
+                metal: document.getElementById('metal-select').value,
+                target_temp: parseFloat(document.getElementById('t-hot').value),
+                ambient_temp: parseFloat(document.getElementById('t-amb').value),
+                layers: layers,
+                geometry: geom
             };
 
+            const btn = document.querySelector('.btn-calc');
+            btn.innerHTML = "RAČUNAM...";
+
             try {
-                // Šaljemo na Python backend
-                const response = await fetch('/api/simulate', {
+                const req = await fetch('/api/simulate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(payload)
                 });
+                const res = await req.json();
 
-                if (!response.ok) throw new Error("Greška na serveru (404 ili 500)");
-                
-                const result = await response.json();
+                // POPUNJAVANJE REZULTATA
+                document.getElementById('res-shell').innerText = res.shell_temp;
+                document.getElementById('res-flux').innerText = res.heat_flux;
+                document.getElementById('res-weight').innerText = res.total_weight;
+                document.getElementById('res-cost').innerText = res.total_cost;
+                document.getElementById('liq-limit').innerText = res.liquidus_temp;
 
-                // Prikazujemo rezultate
-                document.getElementById('out-shell').innerText = result.shell_temp + " °C";
-                document.getElementById('out-flux').innerText = result.heat_flux + " W/m²";
-                document.getElementById('out-liq').innerText = (result.liquidus_temp || "---") + " °C";
-                document.getElementById('out-cost').innerText = result.total_cost + " €";
+                // POPUNJAVANJE TABELE
+                const tbody = document.getElementById('bom-body');
+                tbody.innerHTML = "";
+                res.bom.forEach(item => {
+                    tbody.innerHTML += `
+                        <tr class="border-b border-slate-700">
+                            <td class="p-2">${item.name}</td>
+                            <td class="p-2 text-orange-400">${item.th} mm</td>
+                            <td class="p-2">${item.temp} °C</td>
+                            <td class="p-2">${item.w} kg</td>
+                            <td class="p-2">${item.cost} €</td>
+                        </tr>
+                    `;
+                });
 
-                drawChart(result.profile, result.liquidus_temp);
+                renderChart(res.profile, res.liquidus_temp);
 
-            } catch (err) {
-                console.error(err);
-                alert("Greška u kalkulaciji! Proveri da li je Deploy završen na Renderu.");
-            } finally {
-                btn.innerText = "POKRENI SIMULACIJU 🚀";
+            } catch(e) {
+                console.error(e);
+                alert("Greška! Proveri konzolu.");
             }
+            btn.innerHTML = "IZRAČUNAJ 🚀";
         }
 
-        // 4. CRTANJE GRAFIKA
-        function drawChart(profile, limit) {
-            const ctx = document.getElementById('myChart').getContext('2d');
-            if (CHART) CHART.destroy();
-
-            const labels = profile.map(p => p.pos + "mm");
-            const data = profile.map(p => p.temp);
-
+        function renderChart(data, limit) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if(CHART) CHART.destroy();
+            
             CHART = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: data.map(d => d.pos + ' mm'),
                     datasets: [{
-                        label: 'Temperatura kroz zid (°C)',
-                        data: data,
-                        borderColor: 'orange',
-                        borderWidth: 3,
-                        fill: false
+                        label: 'Temp (°C)',
+                        data: data.map(d => d.temp),
+                        borderColor: '#f97316',
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }, {
+                        label: 'Liquidus',
+                        data: Array(data.length).fill(limit),
+                        borderColor: 'red',
+                        borderDash: [5,5],
+                        borderWidth: 1,
+                        pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: false, grid: { color: '#444' } },
-                        x: { grid: { color: '#444' } }
-                    }
+                        y: { grid: {color: '#334155'}, ticks: {color:'#94a3b8'} },
+                        x: { display: false }
+                    },
+                    plugins: { legend: {display: false} }
                 }
             });
         }
