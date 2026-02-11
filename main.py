@@ -41,23 +41,38 @@ METALS_DB = {
     "Bakar": 1085, "Mesing": 930, "Bronza": 950, "Aluminijum": 660
 }
 
-# --- BRZO UCITAVANJE SA KESIRANJEM ---
+# --- OVO JE UNIVERZALNO RESENJE ---
 def get_mats():
     global CACHED_MATERIALS
     
-    # 1. Ako je vec ucitano, vrati odmah (0s)
+    # 1. KESIRANJE (Brzina)
     if CACHED_MATERIALS:
         return CACHED_MATERIALS
 
-    # 2. Prvo ucitavanje (Traje duze)
+    # 2. DEFAULT LISTA
     mats = [{"name": "STEEL SHELL (S235)", "density": 7850, "lambda_val": 50.0, "price": 1000},
             {"name": "AIR GAP", "density": 1, "lambda_val": 0.05, "price": 0}]
     
-    if os.path.exists(PDF_FOLDER):
-        for f in os.listdir(PDF_FOLDER):
+    # 3. DETEKTIV ZA FOLDER (Trazi gde su PDF-ovi)
+    # Ovo resava dilemu "tds" ili "tehnicki_listovi" jednom zauvek
+    possible_folders = ["tds", "tehnicki_listovi", "TDS", "Tehnicki_listovi"]
+    
+    found_folder = None
+    cwd = os.getcwd()
+    
+    for f in possible_folders:
+        full_path = os.path.join(cwd, f)
+        if os.path.exists(full_path):
+            found_folder = full_path
+            break
+            
+    # 4. UCITAVANJE (Ako smo nasli folder)
+    if found_folder:
+        print(f"BINGO! Nasao sam materijale u: {found_folder}")
+        for f in os.listdir(found_folder):
             if f.lower().endswith(".pdf"):
                 try:
-                    r = PyPDF2.PdfReader(os.path.join(PDF_FOLDER, f))
+                    r = PyPDF2.PdfReader(os.path.join(found_folder, f))
                     txt = r.pages[0].extract_text() or ""
                     dm = re.search(r"(\d+[.,]?\d*)\s*(kg/m3|g/cm3)", txt, re.IGNORECASE)
                     den = 2300
@@ -66,14 +81,13 @@ def get_mats():
                         den = val * 1000 if val < 10 else val
                     mats.append({"name": f[:-4].upper(), "density": int(den), "lambda_val": 1.5, "price": 800})
                 except:
-                    # Fallback
+                    # Fallback samo na ime fajla ako PDF pukne
                     try: mats.append({"name": f[:-4].upper(), "density": 2300, "lambda_val": 1.5, "price": 800})
                     except: pass
     
-    # 3. Sacuvaj u memoriju
+    # 5. SACUVAJ U MEMORIJU
     CACHED_MATERIALS = sorted(mats, key=lambda x: x["name"])
     return CACHED_MATERIALS
-
 # --- MODELS ---
 class Layer(BaseModel):
     material: str; thickness: float; lambda_val: float; density: float; price: float
