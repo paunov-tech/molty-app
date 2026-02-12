@@ -10,7 +10,7 @@ from googleapiclient.discovery import build
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# Konfiguracija
+# --- KONFIGURACIJA ---
 TDS_PATH = "tehnicki_listovi"
 DB_FILE = "molty.db"
 ROOT_FOLDER_ID = os.getenv("ROOT_FOLDER_ID", "1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN")
@@ -29,15 +29,7 @@ class Layer(BaseModel):
 class SimReq(BaseModel):
     metal: str; target_temp: float; ambient_temp: float; layers: List[Layer]
 
-def get_drive_service():
-    try:
-        creds_json = os.getenv("GOOGLE_CREDENTIALS")
-        if not creds_json: return None
-        info = json.loads(creds_json)
-        creds = service_account.Credentials.from_service_account_info(info)
-        return build('drive', 'v3', credentials=creds)
-    except: return None
-
+# --- TEHNIČKI LISTOVI (TDS) ---
 def get_mats_from_tds():
     mats = [{"name": "STEEL SHELL", "density": 7850, "lambda_val": 50.0, "price": 1000}]
     if not os.path.exists(TDS_PATH): 
@@ -49,14 +41,26 @@ def get_mats_from_tds():
                 with open(os.path.join(TDS_PATH, file), "rb") as f:
                     reader = PyPDF2.PdfReader(f)
                     txt = "".join([p.extract_text() or "" for p in reader.pages]).upper()
+                    # Ekstrakcija gustine (kg/m3)
                     den_match = re.search(r"(\d+[.,]?\d*)\s*(KG/M3|G/CM3)", txt)
                     density = float(den_match.group(1).replace(",", ".")) if den_match else 2500
                     if density < 100: density *= 1000
+                    # Ekstrakcija Lambde (W/mK)
                     lam_match = re.search(r"(\d+[.,]?\d*)\s*(W/MK|W/M K)", txt)
                     l_val = float(lam_match.group(1).replace(",", ".")) if lam_match else 1.4
                     mats.append({"name": file.replace(".pdf", "").upper(), "density": int(density), "lambda_val": l_val, "price": 950})
             except: continue
     return mats
+
+# --- DRIVE & AI ---
+def get_drive_service():
+    try:
+        creds_json = os.getenv("GOOGLE_CREDENTIALS")
+        if not creds_json: return None
+        info = json.loads(creds_json)
+        creds = service_account.Credentials.from_service_account_info(info)
+        return build('drive', 'v3', credentials=creds)
+    except: return None
 
 @app.get("/api/init")
 def init_data():
@@ -65,17 +69,11 @@ def init_data():
         "metals": {"Sivi Liv": 1200, "Nodularni Liv": 1150, "Celik (Low C)": 1510, "Bakar": 1085, "Aluminijum": 660}
     }
 
-@app.get("/api/drive/test-scan")
-def test_drive_scan():
-    service = get_drive_service()
-    if not service: return {"status": "error"}
-    q = f"'{ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder'"
-    res = service.files().list(q=q, fields="files(id, name)").execute().get('files', [])
-    return {"status": "success", "found_clients": res}
-
 @app.get("/api/drive/scan-deep/{fid}")
 def scan_deep(fid: str):
     service = get_drive_service()
+    if not service: return {"status": "error"}
+    # Duboko skeniranje 2020+
     q_years = f"'{fid}' in parents and mimeType = 'application/vnd.google-apps.folder'"
     years = service.files().list(q=q_years, fields="files(id, name)").execute().get('files', [])
     files = []
@@ -90,32 +88,22 @@ def scan_deep(fid: str):
             for p in pdfs: files.append({"godina": y['name'], "tip": df['name'], "ime": p['name'], "id": p['id']})
     return {"status": "success", "files": files}
 
-@app.get("/api/drive/analyze-file/{file_id}")
-def analyze_file(file_id: str):
-    service = get_drive_service()
-    try:
-        req = service.files().get_media(fileId=file_id)
-        f_io = io.BytesIO(req.execute())
-        reader = PyPDF2.PdfReader(f_io)
-        txt = "".join([p.extract_text() or "" for p in reader.pages]).upper()
-        mat = next((m for m in ["MAGNIT", "ALKON", "BARYT", "CALDE"] if m in txt), "NEPOZNATO")
-        w = re.search(r"(\d+[.,]?\d*)\s*(T|TN|TONA|KG)", txt)
-        p = re.search(r"(\d+[.,]?\d*)\s*(EUR|€|USD|\$)", txt)
-        return {"status": "success", "extracted": {"material": mat, "weight": w.group(1).replace(",", ".") if w else "0", "price": p.group(1).replace(",", ".") if p else "0"}}
-    except: return {"status": "error"}
-
 @app.post("/api/simulate")
 def simulate(r: SimReq):
-    total_r = 0.12; tw = 0; tc = 0; bom = []
+    total_r = 0.12 # Otpor spoljnog vazduha
+    tw = 0; tc = 0; bom = []
     for l in r.layers:
-        total_r += (l.thickness/1000) / (l.lambda_val if l.lambda_val > 0 else 0.01)
-        w = (l.thickness/1000) * l.density
-        cost = (w/1000) * l.price
-        tw += w; tc += cost
-        bom.append({"name": l.material, "th": l.thickness, "w": round(w, 1), "cost": round(cost, 1)})
+        # Proračun težine: Debljina (m) * Gustina (kg/m3)
+        weight = (l.thickness / 1000) * l.density
+        # Proračun cene: (Težina / 1000) * Cena po toni
+        cost = (weight / 1000) * l.price
+        
+        total_r += (l.thickness / 1000) / (l.lambda_val if l.lambda_val > 0 else 0.01)
+        tw += weight; tc += cost
+        bom.append({"name": l.material, "th": l.thickness, "w": round(weight, 1), "cost": round(cost, 1)})
+        
     shell_t = r.ambient_temp + ((r.target_temp - r.ambient_temp) / total_r) * 0.12
     return {"shell_temp": round(shell_t, 1), "total_weight": round(tw, 1), "total_cost": round(tc, 1), "bom": bom}
 
 @app.get("/", response_class=HTMLResponse)
-def root(): 
-    return open("dashboard.html", encoding="utf-8").read()
+def root(): return open("dashboard.html", encoding="utf-8").read()
