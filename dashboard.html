@@ -1,80 +1,49 @@
 <!DOCTYPE html>
 <html lang="sr" class="dark">
 <head>
-    <meta charset="UTF-8"><title>MOLTY PRO V4.0</title>
+    <meta charset="UTF-8"><title>MOLTY PRO V4.5</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background: #0b0d12; color: #cfd8dc; font-family: sans-serif; overflow: hidden; height: 100vh; }
-        .glass { background: rgba(22, 27, 34, 0.9); border: 1px solid #30363d; }
-        .tab-btn { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; }
-        .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; background: #161b22; }
+        body { background: #0b0d12; color: #cfd8dc; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        .glass { background: #161b22; border: 1px solid #30363d; border-radius: 12px; }
         .input-cad { background: #0d1117; border: 1px solid #30363d; color: white; padding: 6px; font-size: 11px; text-align: center; border-radius: 4px; width: 100%; }
-        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.4); transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+        .tab-btn.active { color: #58a6ff; border-bottom: 2px solid #58a6ff; background: #0d1117; }
+        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.5); transition: 0.5s; }
+        ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #30363d; }
     </style>
 </head>
 <body class="flex flex-col h-full">
     <div class="h-14 border-b border-[#30363d] flex items-center justify-between px-6 bg-[#0d1117]">
-        <div class="flex items-center gap-8">
-            <h1 class="text-xl font-bold text-white tracking-tighter uppercase italic">Molty<span class="text-blue-500">Pro</span></h1>
-            <div class="flex">
-                <div id="t-tech" class="tab-btn active text-xs font-bold" onclick="switchTab('tech')">INŽENJERING</div>
-                <div id="t-comm" class="tab-btn text-xs font-bold" onclick="switchTab('comm')">KOMERCIJALA</div>
-            </div>
+        <h1 class="text-xl font-black italic text-white uppercase tracking-tighter">Molty<span class="text-blue-500">Pro</span></h1>
+        <div class="flex h-full font-bold text-xs">
+            <div id="t-tech" class="p-4 cursor-pointer tab-btn active" onclick="switchTab('tech')">INŽENJERING</div>
+            <div id="t-comm" class="p-4 cursor-pointer tab-btn" onclick="switchTab('comm')">KOMERCIJALA</div>
         </div>
-        <div class="flex items-center gap-3 text-[10px] font-mono text-green-500">
-            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> STABLE ENGINE V4
-        </div>
+        <div class="text-[10px] text-green-500 font-mono animate-pulse uppercase tracking-widest italic">V4.5 Final Master</div>
     </div>
 
     <div class="flex-1 flex overflow-hidden">
         <div id="view-tech" class="flex flex-1 overflow-hidden">
-            <div class="w-80 border-r border-[#30363d] bg-[#0d1117] p-4 flex flex-col gap-4 overflow-y-auto">
-                <div class="glass p-3 rounded">
-                    <label class="text-[9px] text-gray-500 uppercase font-bold mb-1 block">Metal / Temperatura</label>
-                    <select id="metalSelect" class="input-cad text-left font-bold text-orange-400"></select>
-                </div>
-                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-[10px] font-bold shadow-lg hover:bg-[#2ea043]">+ DODAJ SLOJ OBLOGE</button>
+            <div class="w-80 border-r border-[#30363d] p-4 flex flex-col gap-4 bg-[#0d1117] overflow-y-auto">
+                <div class="glass p-3"><label class="text-[9px] text-gray-500 font-bold block mb-1">METALNA LEGURO</label><select id="metalSelect" class="input-cad text-left font-bold text-orange-400"></select></div>
+                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-[10px] font-bold shadow-lg hover:bg-[#2ea043]">+ DODAJ SLOJ</button>
                 <div id="layerList" class="space-y-2 flex-1"></div>
-                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-xs mt-4 hover:bg-blue-500 transition-colors">IZRAČUNAJ PARAMETRE</button>
+                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-xs mt-4">IZRAČUNAJ</button>
             </div>
             <div class="flex-1 p-8 bg-[#010409] overflow-y-auto">
                 <div id="resBox" class="hidden space-y-6">
                     <div class="grid grid-cols-3 gap-6">
-                        <div class="glass p-6 rounded-xl text-center border-t-2 border-orange-500"><p class="text-[10px] text-gray-500 mb-1 uppercase">Temperatura oklopa</p><p id="res-t" class="text-5xl font-black text-orange-500">0°C</p></div>
-                        <div class="glass p-6 rounded-xl text-center border-t-2 border-white"><p class="text-[10px] text-gray-500 mb-1 uppercase">Težina (kg/m²)</p><p id="res-w" class="text-5xl font-black text-white">0</p></div>
-                        <div class="glass p-6 rounded-xl text-center border-t-2 border-blue-500"><p class="text-[10px] text-gray-500 mb-1 uppercase">Procena cene (€)</p><p id="res-c" class="text-5xl font-black text-blue-400">0</p></div>
+                        <div class="glass p-6 text-center shadow-xl"><p class="text-[10px] text-gray-500 mb-1">OKLOP PEĆI</p><p id="res-t" class="text-5xl font-black text-orange-500">0°C</p></div>
+                        <div class="glass p-6 text-center shadow-xl"><p class="text-[10px] text-gray-500 mb-1">TEŽINA kg/m²</p><p id="res-w" class="text-5xl font-black text-white">0</p></div>
+                        <div class="glass p-6 text-center shadow-xl"><p class="text-[10px] text-gray-500 mb-1">CENA €/m²</p><p id="res-c" class="text-5xl font-black text-blue-400">0</p></div>
                     </div>
-                    <div class="h-40 w-full glass rounded-xl overflow-hidden flex border-2 border-[#30363d] shadow-inner" id="vizBar"></div>
-                    <div class="glass rounded-xl overflow-hidden">
-                        <table class="w-full text-xs text-left">
-                            <thead class="bg-[#161b22] text-gray-400 uppercase"><tr><th class="p-4">Materijal iz TDS-a</th><th class="text-right">Debljina (mm)</th><th class="text-right">Količina (kg)</th><th class="text-right p-4">Cena (€)</th></tr></thead>
-                            <tbody id="resTable" class="divide-y divide-[#30363d]"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div id="empty" class="h-full flex flex-col items-center justify-center opacity-10">
-                    <i class="fa-solid fa-microchip text-[120px] mb-4"></i>
-                    <p class="text-xl font-bold uppercase tracking-tighter">Spreman za termičku simulaciju</p>
+                    <div id="vizBar" class="h-40 glass flex rounded-xl overflow-hidden border-2 border-[#30363d]"></div>
+                    <div class="glass overflow-hidden"><table class="w-full text-xs text-left"><thead class="bg-[#161b22] text-gray-400 uppercase"><tr><th class="p-4">Materijal</th><th class="text-right">mm</th><th class="text-right">kg (Tonaža)</th><th class="text-right p-4">€</th></tr></thead><tbody id="resTable" class="divide-y divide-[#30363d]"></tbody></table></div>
                 </div>
             </div>
         </div>
-
-        <div id="view-comm" class="hidden flex-1 p-8 bg-[#010409] overflow-hidden flex flex-col">
-            <div class="glass p-6 rounded-2xl flex flex-col h-full border-blue-900/20">
-                <div class="flex gap-4 mb-6">
-                    <select id="clientSelect" class="bg-[#0d1117] border border-[#30363d] text-white p-3 rounded-lg flex-1 font-bold text-lg"></select>
-                    <button onclick="scanArchive()" class="bg-green-600 text-white px-10 py-3 rounded-lg font-bold hover:bg-green-500 uppercase tracking-widest text-sm">SKENIRAJ DOKUMENTACIJU</button>
-                </div>
-                <div class="flex-1 overflow-y-auto border border-[#30363d] rounded-xl bg-[#0d1117]">
-                    <table class="w-full text-xs text-left">
-                        <thead class="bg-[#161b22] sticky top-0 text-gray-400 uppercase"><tr><th class="p-4">GODINA</th><th>TIP</th><th>NAZIV FAJLA</th><th class="text-right p-4">AI ROBOT</th></tr></thead>
-                        <tbody id="docTable" class="divide-y divide-[#30363d]"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        <div id="view-comm" class="hidden flex-1 p-20 text-center italic text-gray-600">Modul Arhive zahteva Google API integraciju.</div>
     </div>
 
     <script>
@@ -84,7 +53,7 @@
             MATS = d.materials; METALS = d.metals;
             const ms = document.getElementById('metalSelect');
             for(let m in METALS) ms.innerHTML += `<option value="${m}">${m} (${METALS[m]}°C)</option>`;
-            addLayer(); loadClients();
+            addLayer();
         };
 
         function switchTab(t) {
@@ -94,34 +63,11 @@
             document.getElementById('t-comm').classList.toggle('active', t==='comm');
         }
 
-        async function loadClients() {
-            const r = await fetch('/api/drive/test-scan'); const d = await r.json();
-            const sel = document.getElementById('clientSelect');
-            if(d.status==='success') d.found_clients.forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
-        }
-
-        async function scanArchive() {
-            const fid = document.getElementById('clientSelect').value;
-            const tb = document.getElementById('docTable'); tb.innerHTML = '<tr><td colspan="4" class="p-10 text-center animate-pulse">Duboko skeniranje G-Drive foldera...</td></tr>';
-            const r = await fetch(`/api/drive/scan-deep/${fid}`); const d = await r.json();
-            tb.innerHTML = '';
-            d.files.forEach(f => {
-                tb.innerHTML += `<tr class="hover:bg-[#161b22] border-b border-[#30363d]">
-                    <td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[9px]">${f.godina}</span></td>
-                    <td class="text-blue-400 font-bold uppercase text-[9px]">${f.tip}</td><td>${f.ime}</td>
-                    <td class="text-right p-4"><button onclick="alert('Robot skenira PDF: ${f.ime}')" class="text-orange-500 font-bold border border-orange-500/30 px-3 py-1 rounded text-[9px] hover:bg-orange-500/10">ANALIZIRAJ</button></td>
-                </tr>`;
-            });
-        }
-
         function addLayer() {
-            const div = document.createElement('div'); div.className = 'glass p-3 relative group rounded border-l-4 border-blue-500';
+            const div = document.createElement('div'); div.className = 'glass p-3 rounded border-l-4 border-blue-500';
             let opt = MATS.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
             div.innerHTML = `<select onchange="upd(this)" class="input-cad text-left mb-2 text-blue-400 font-bold uppercase">${opt}</select>
-                <div class="grid grid-cols-2 gap-2">
-                    <div class="flex flex-col"><label class="text-[8px] text-gray-500 ml-1 uppercase">mm</label><input type="number" class="th input-cad" value="114"></div>
-                    <div class="flex flex-col"><label class="text-[8px] text-gray-500 ml-1 uppercase">λ W/mK</label><input type="number" class="l input-cad opacity-50" readonly></div>
-                </div>`;
+                <div class="grid grid-cols-2 gap-2"><input type="number" class="th input-cad" value="114"><input type="number" class="l input-cad opacity-50" readonly></div>`;
             document.getElementById('layerList').appendChild(div); upd(div.querySelector('select'));
         }
 
@@ -137,14 +83,14 @@
             const mKey = document.getElementById('metalSelect').value;
             const r = await fetch('/api/simulate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ metal: mKey, target_temp: METALS[mKey], ambient_temp: 30, layers })});
             const res = await r.json();
-            document.getElementById('empty').classList.add('hidden'); document.getElementById('resBox').classList.remove('hidden');
+            document.getElementById('resBox').classList.remove('hidden');
             document.getElementById('res-t').innerText = res.shell_temp + "°C";
             document.getElementById('res-w').innerText = res.total_weight;
             document.getElementById('res-c').innerText = res.total_cost.toLocaleString();
-            let h = ''; let v = ''; const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5', '#f85149'];
+            let h = ''; let v = ''; const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5'];
             res.bom.forEach((i, idx) => {
-                h += `<tr><td class="p-4 font-bold text-white uppercase text-[9px]">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
-                v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}" title="${i.name}"></div>`;
+                h += `<tr class="hover:bg-[#161b22]"><td class="p-4 font-bold text-white uppercase text-[9px]">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
+                v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}"></div>`;
             });
             document.getElementById('resTable').innerHTML = h; document.getElementById('vizBar').innerHTML = v;
         }
