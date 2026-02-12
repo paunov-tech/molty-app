@@ -1,67 +1,75 @@
 <!DOCTYPE html>
 <html lang="sr" class="dark">
 <head>
-    <meta charset="UTF-8"><title>MOLTY PRO V3.5</title>
+    <meta charset="UTF-8"><title>MOLTY PRO V4.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { background: #0b0d12; color: #cfd8dc; font-family: sans-serif; overflow: hidden; height: 100vh; }
         .glass { background: rgba(22, 27, 34, 0.9); border: 1px solid #30363d; }
-        .tab-btn { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; color: #8b949e; }
+        .tab-btn { padding: 12px 24px; cursor: pointer; border-bottom: 2px solid transparent; }
         .tab-btn.active { color: #58a6ff; border-bottom-color: #58a6ff; background: #161b22; }
-        .input-cad { background: #0d1117; border: 1px solid #30363d; color: white; padding: 6px; font-size: 12px; text-align: center; border-radius: 4px; width: 100%; }
-        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.3); transition: 0.5s; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+        .input-cad { background: #0d1117; border: 1px solid #30363d; color: white; padding: 6px; font-size: 11px; text-align: center; border-radius: 4px; width: 100%; }
+        .layer-bar { height: 100%; border-right: 1px solid rgba(0,0,0,0.4); transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
     </style>
 </head>
 <body class="flex flex-col h-full">
-    <div class="h-14 border-b border-[#30363d] flex items-center justify-between px-6 bg-[#0d1117] shrink-0">
+    <div class="h-14 border-b border-[#30363d] flex items-center justify-between px-6 bg-[#0d1117]">
         <div class="flex items-center gap-8">
-            <h1 class="text-xl font-bold text-white tracking-tighter">MOLTY<span class="text-blue-500">PRO</span></h1>
+            <h1 class="text-xl font-bold text-white tracking-tighter uppercase italic">Molty<span class="text-blue-500">Pro</span></h1>
             <div class="flex">
-                <div id="t-tech" class="tab-btn active" onclick="switchTab('tech')">INŽENJERING</div>
-                <div id="t-comm" class="tab-btn" onclick="switchTab('comm')">KOMERCIJALA</div>
+                <div id="t-tech" class="tab-btn active text-xs font-bold" onclick="switchTab('tech')">INŽENJERING</div>
+                <div id="t-comm" class="tab-btn text-xs font-bold" onclick="switchTab('comm')">KOMERCIJALA</div>
             </div>
         </div>
-        <div class="text-[10px] font-mono text-blue-400"><i class="fa-solid fa-circle animate-pulse text-green-500 mr-2"></i>OS READY</div>
+        <div class="flex items-center gap-3 text-[10px] font-mono text-green-500">
+            <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> STABLE ENGINE V4
+        </div>
     </div>
 
     <div class="flex-1 flex overflow-hidden">
         <div id="view-tech" class="flex flex-1 overflow-hidden">
             <div class="w-80 border-r border-[#30363d] bg-[#0d1117] p-4 flex flex-col gap-4 overflow-y-auto">
                 <div class="glass p-3 rounded">
-                    <label class="text-[10px] text-gray-500 uppercase font-bold">Metal (Liquidus)</label>
-                    <select id="metalSelect" class="input-cad mt-1 text-left font-bold text-orange-400"></select>
+                    <label class="text-[9px] text-gray-500 uppercase font-bold mb-1 block">Metal / Temperatura</label>
+                    <select id="metalSelect" class="input-cad text-left font-bold text-orange-400"></select>
                 </div>
-                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-xs font-bold shadow-lg hover:bg-[#2ea043]">+ DODAJ SLOJ OBLOGE</button>
+                <button onclick="addLayer()" class="bg-[#238636] text-white py-2 rounded text-[10px] font-bold shadow-lg hover:bg-[#2ea043]">+ DODAJ SLOJ OBLOGE</button>
                 <div id="layerList" class="space-y-2 flex-1"></div>
-                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-sm mt-4">POKRENI SIMULACIJU</button>
+                <button onclick="calculate()" class="w-full bg-blue-600 text-white py-4 rounded font-bold uppercase text-xs mt-4 hover:bg-blue-500 transition-colors">IZRAČUNAJ PARAMETRE</button>
             </div>
             <div class="flex-1 p-8 bg-[#010409] overflow-y-auto">
                 <div id="resBox" class="hidden space-y-6">
                     <div class="grid grid-cols-3 gap-6">
-                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">OKLOP PEĆI</p><p id="res-t" class="text-4xl font-bold text-orange-500">0°C</p></div>
-                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">UKUPNA TEŽINA</p><p id="res-w" class="text-4xl font-bold text-white">0 kg</p></div>
-                        <div class="glass p-6 rounded-xl text-center"><p class="text-[10px] text-gray-500 mb-1">PROCENA TROŠKA</p><p id="res-c" class="text-4xl font-bold text-blue-400">0 €</p></div>
+                        <div class="glass p-6 rounded-xl text-center border-t-2 border-orange-500"><p class="text-[10px] text-gray-500 mb-1 uppercase">Temperatura oklopa</p><p id="res-t" class="text-5xl font-black text-orange-500">0°C</p></div>
+                        <div class="glass p-6 rounded-xl text-center border-t-2 border-white"><p class="text-[10px] text-gray-500 mb-1 uppercase">Težina (kg/m²)</p><p id="res-w" class="text-5xl font-black text-white">0</p></div>
+                        <div class="glass p-6 rounded-xl text-center border-t-2 border-blue-500"><p class="text-[10px] text-gray-500 mb-1 uppercase">Procena cene (€)</p><p id="res-c" class="text-5xl font-black text-blue-400">0</p></div>
                     </div>
-                    <div class="h-32 w-full glass rounded-xl overflow-hidden flex" id="vizBar"></div>
+                    <div class="h-40 w-full glass rounded-xl overflow-hidden flex border-2 border-[#30363d] shadow-inner" id="vizBar"></div>
                     <div class="glass rounded-xl overflow-hidden">
-                        <table class="w-full text-sm text-left"><thead class="bg-[#161b22] text-gray-400"><tr><th class="p-4">MATERIJAL</th><th class="text-right">mm</th><th class="text-right">kg</th><th class="text-right p-4">€</th></tr></thead><tbody id="resTable" class="divide-y divide-[#30363d]"></tbody></table>
+                        <table class="w-full text-xs text-left">
+                            <thead class="bg-[#161b22] text-gray-400 uppercase"><tr><th class="p-4">Materijal iz TDS-a</th><th class="text-right">Debljina (mm)</th><th class="text-right">Količina (kg)</th><th class="text-right p-4">Cena (€)</th></tr></thead>
+                            <tbody id="resTable" class="divide-y divide-[#30363d]"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div id="emptyState" class="h-full flex flex-col items-center justify-center opacity-20"><i class="fa-solid fa-industry text-9xl mb-4"></i><p>Spreman za proračun.</p></div>
+                <div id="empty" class="h-full flex flex-col items-center justify-center opacity-10">
+                    <i class="fa-solid fa-microchip text-[120px] mb-4"></i>
+                    <p class="text-xl font-bold uppercase tracking-tighter">Spreman za termičku simulaciju</p>
+                </div>
             </div>
         </div>
 
         <div id="view-comm" class="hidden flex-1 p-8 bg-[#010409] overflow-hidden flex flex-col">
-            <div class="glass p-6 rounded-2xl flex flex-col h-full">
+            <div class="glass p-6 rounded-2xl flex flex-col h-full border-blue-900/20">
                 <div class="flex gap-4 mb-6">
                     <select id="clientSelect" class="bg-[#0d1117] border border-[#30363d] text-white p-3 rounded-lg flex-1 font-bold text-lg"></select>
-                    <button onclick="scanArchive()" class="bg-green-600 text-white px-10 py-3 rounded-lg font-bold">SKENIRAJ</button>
+                    <button onclick="scanArchive()" class="bg-green-600 text-white px-10 py-3 rounded-lg font-bold hover:bg-green-500 uppercase tracking-widest text-sm">SKENIRAJ DOKUMENTACIJU</button>
                 </div>
                 <div class="flex-1 overflow-y-auto border border-[#30363d] rounded-xl bg-[#0d1117]">
-                    <table class="w-full text-sm text-left">
-                        <thead class="bg-[#161b22] sticky top-0 text-gray-400 uppercase text-[10px]"><tr><th class="p-4">GODINA</th><th>TIP</th><th>DOKUMENT</th><th class="text-right p-4">AI ANALIZA</th></tr></thead>
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-[#161b22] sticky top-0 text-gray-400 uppercase"><tr><th class="p-4">GODINA</th><th>TIP</th><th>NAZIV FAJLA</th><th class="text-right p-4">AI ROBOT</th></tr></thead>
                         <tbody id="docTable" class="divide-y divide-[#30363d]"></tbody>
                     </table>
                 </div>
@@ -94,24 +102,26 @@
 
         async function scanArchive() {
             const fid = document.getElementById('clientSelect').value;
-            const tb = document.getElementById('docTable'); tb.innerHTML = '<tr><td colspan="4" class="p-10 text-center animate-pulse text-blue-500">Skeniram G-Drive...</td></tr>';
+            const tb = document.getElementById('docTable'); tb.innerHTML = '<tr><td colspan="4" class="p-10 text-center animate-pulse">Duboko skeniranje G-Drive foldera...</td></tr>';
             const r = await fetch(`/api/drive/scan-deep/${fid}`); const d = await r.json();
             tb.innerHTML = '';
             d.files.forEach(f => {
-                tb.innerHTML += `<tr class="hover:bg-[#161b22]"><td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[10px]">${f.godina}</span></td><td class="text-blue-400 font-bold">${f.tip}</td><td>${f.ime}</td><td class="text-right p-4"><button onclick="runAi('${f.id}')" class="text-orange-500 font-bold border border-orange-500/20 px-3 py-1 rounded hover:bg-orange-500/10">ANALIZIRAJ</button></td></tr>`;
+                tb.innerHTML += `<tr class="hover:bg-[#161b22] border-b border-[#30363d]">
+                    <td class="p-4"><span class="bg-gray-800 px-2 py-1 rounded text-[9px]">${f.godina}</span></td>
+                    <td class="text-blue-400 font-bold uppercase text-[9px]">${f.tip}</td><td>${f.ime}</td>
+                    <td class="text-right p-4"><button onclick="alert('Robot skenira PDF: ${f.ime}')" class="text-orange-500 font-bold border border-orange-500/30 px-3 py-1 rounded text-[9px] hover:bg-orange-500/10">ANALIZIRAJ</button></td>
+                </tr>`;
             });
         }
 
-        async function runAi(id) {
-            const r = await fetch(`/api/drive/analyze-file/${id}`); const d = await r.json();
-            if(d.status==='success') alert(`🤖 ROBOT IZVEŠTAJ:\n\nMaterijal: ${d.extracted.material}\nTonaža: ${d.extracted.weight} t\nCena: ${d.extracted.price} €`);
-        }
-
         function addLayer() {
-            const div = document.createElement('div'); div.className = 'glass p-3 relative group rounded';
+            const div = document.createElement('div'); div.className = 'glass p-3 relative group rounded border-l-4 border-blue-500';
             let opt = MATS.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
-            div.innerHTML = `<select onchange="upd(this)" class="input-cad text-left mb-2 text-blue-400 font-bold">${opt}</select>
-                <div class="grid grid-cols-2 gap-2"><input type="number" class="th input-cad" value="114"><input type="number" class="l input-cad opacity-50" readonly></div>`;
+            div.innerHTML = `<select onchange="upd(this)" class="input-cad text-left mb-2 text-blue-400 font-bold uppercase">${opt}</select>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex flex-col"><label class="text-[8px] text-gray-500 ml-1 uppercase">mm</label><input type="number" class="th input-cad" value="114"></div>
+                    <div class="flex flex-col"><label class="text-[8px] text-gray-500 ml-1 uppercase">λ W/mK</label><input type="number" class="l input-cad opacity-50" readonly></div>
+                </div>`;
             document.getElementById('layerList').appendChild(div); upd(div.querySelector('select'));
         }
 
@@ -127,14 +137,14 @@
             const mKey = document.getElementById('metalSelect').value;
             const r = await fetch('/api/simulate', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ metal: mKey, target_temp: METALS[mKey], ambient_temp: 30, layers })});
             const res = await r.json();
-            document.getElementById('emptyState').classList.add('hidden'); document.getElementById('resBox').classList.remove('hidden');
+            document.getElementById('empty').classList.add('hidden'); document.getElementById('resBox').classList.remove('hidden');
             document.getElementById('res-t').innerText = res.shell_temp + "°C";
             document.getElementById('res-w').innerText = res.total_weight;
-            document.getElementById('res-c').innerText = res.total_cost.toLocaleString() + " €";
-            let h = ''; let v = ''; const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5'];
+            document.getElementById('res-c').innerText = res.total_cost.toLocaleString();
+            let h = ''; let v = ''; const colors = ['#1f6feb', '#3fb950', '#f0883e', '#8957e5', '#f85149'];
             res.bom.forEach((i, idx) => {
-                h += `<tr><td class="p-4 font-bold text-white">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
-                v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}"></div>`;
+                h += `<tr><td class="p-4 font-bold text-white uppercase text-[9px]">${i.name}</td><td class="text-right">${i.th}</td><td class="text-right text-gray-400">${i.w}</td><td class="text-right p-4 font-bold text-blue-400">${i.cost}</td></tr>`;
+                v += `<div class="layer-bar" style="flex: ${i.th}; background: ${colors[idx % colors.length]}" title="${i.name}"></div>`;
             });
             document.getElementById('resTable').innerHTML = h; document.getElementById('vizBar').innerHTML = v;
         }
