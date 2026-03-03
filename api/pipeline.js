@@ -1,6 +1,6 @@
 // api/pipeline.js — Pipeline Tracker
 // Prati: ponuda → PO → OC → DN → faktura u Firestore
-import { initializeApp, getApps } = from "firebase-admin/app";
+import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 
 function initAdmin() {
