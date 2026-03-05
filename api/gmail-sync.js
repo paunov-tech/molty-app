@@ -123,7 +123,8 @@ export default async function handler(req, res) {
           userId: 'me', messageId: id, id: part.body.attachmentId,
         });
         const fileBuffer = Buffer.from(attRes.data.data, 'base64');
-        const pdfBase64 = attRes.data.data;
+        // Gmail vraća base64url — konvertuj u standardni base64 za Anthropic
+        const pdfBase64 = attRes.data.data.replace(/-/g, '+').replace(/_/g, '/');
 
         // 6. Claude skenira PDF — kupac, tip, materijali
         let parsed = { type: 'unknown', customer: { name: null, country: null }, items: [], documentNumber: null, totalAmount: null, currency: 'EUR' };
