@@ -131,12 +131,33 @@ export default async function handler(req, res) {
         try {
           const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
           const prompt = `Analiziraj ovaj poslovni dokument iz industrije vatrostalnih materijala (Calderys).
-KONTEKST: Calderys je dobavljač. Kupac je firma kojoj se šalje dokument.
-- Faktura/Ponuda/OC: kupac je "Bill To", "Sold To", "Company", "Quotation For", "To:"
-- Calderys varijante su UVEK supplier, NIKAD customer: Calderys Austria/DE/Serbia, SIAL
-- Traži materijale: CALDE, SILICA MIX, PLAST, PLICAST, ALKON, PORIT, OPAL
-Odgovori SAMO JSON:
-{"type":"invoice|offer|po|oc|other","documentNumber":null,"date":null,"customer":{"name":null,"country":null,"city":null},"supplier":{"name":null},"items":[{"material":null,"quantity":null,"unit":null,"unitPrice":null,"totalPrice":null}],"totalAmount":null,"currency":"EUR"}`;
+KONTEKST: Calderys je dobavljač vatrostalnih materijala. Kupac je firma kojoj se šalje dokument.
+- Faktura/Ponuda/OC: kupac je "Bill To", "Sold To", "Company", "Quotation For", "To:", adresa primaoca
+- Calderys varijante su UVEK supplier: Calderys Austria, Calderys DE, Calderys Deutschland, SIAL
+- Za svaku stavku u tabeli izvuci: SAP kod (broj pozicije/materijala), naziv materijala, količinu, jedinicu, cenu, ukupno
+- Materijali počinju sa: CALDE, SILICA MIX, PLAST, PLICAST, ALKON, PORIT, OPAL, ERMAG, ERSPIN
+- totalAmount je NET amount ili Total (bez VAT ako je posebno navedeno)
+Odgovori SAMO JSON bez ikakvog dodatnog teksta:
+{
+  "type": "invoice|offer|po|oc|other",
+  "documentNumber": "string or null",
+  "date": "YYYY-MM-DD or null",
+  "customer": {"name": "string or null", "country": "ISO-2 or null", "city": "string or null"},
+  "supplier": {"name": "string or null"},
+  "items": [
+    {
+      "sapCode": "string or null",
+      "material": "string or null",
+      "quantity": number_or_null,
+      "unit": "TO|KG|kom|null",
+      "unitPrice": number_or_null,
+      "totalPrice": number_or_null,
+      "currency": "EUR|null"
+    }
+  ],
+  "totalAmount": number_or_null,
+  "currency": "EUR|USD|RSD|null"
+}`;
 
           const aiRes = await fetch(ANTHROPIC_API, {
             method: 'POST',
