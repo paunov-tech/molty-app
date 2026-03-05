@@ -141,7 +141,7 @@ Odgovori ISKLJUČIVO u JSON formatu:
   "totalAmount": null,
   "currency": "EUR|USD|RSD|null"
 }
-Odgovori SAMO JSON, bez dodatnog teksta.\`;
+Odgovori SAMO JSON, bez dodatnog teksta.`;
 }
 
 
