@@ -157,11 +157,14 @@ Odgovori SAMO JSON:
               }],
             }),
           });
-          if (aiRes.ok) {
-            const aiData = await aiRes.json();
-            const text = aiData.content?.[0]?.text || '';
+          const aiStatus = aiRes.status;
+          const aiBody = await aiRes.json();
+          if (aiStatus !== 200) {
+            parsed = { type: 'api_error', _error: `${aiStatus}: ${JSON.stringify(aiBody).substring(0,150)}` };
+          } else {
+            const text = aiBody.content?.[0]?.text || '';
             const match = text.match(/\{[\s\S]*\}/);
-            if (match) { parsed = JSON.parse(match[0]); } else { parsed = { type: 'no_json', _rawResponse: text.substring(0, 200) }; }
+            if (match) { parsed = JSON.parse(match[0]); } else { parsed = { type: 'no_json', _raw: text.substring(0,200) }; }
           }
         } catch (parseErr) {
           console.error('[gmail-sync] AI scan failed:', parseErr.message, parseErr.stack);
