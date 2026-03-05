@@ -32,7 +32,6 @@ export default async function handler(req, res) {
     const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
     const snap = await db.collection("docworker")
       .where("status", "==", "new")
-      .where("createdAt", ">=", since)
       .limit(10).get();
 
     const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
