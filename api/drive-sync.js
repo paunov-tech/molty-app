@@ -24,6 +24,8 @@ async function buildFolderTree(drive) {
   let pt = null;
   do {
     const r = await drive.files.list({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
       q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
       fields: 'nextPageToken, files(id, name, parents)',
       pageSize: 1000,
@@ -65,7 +67,9 @@ async function buildFolderTree(drive) {
 async function healthCheck() {
   const drive = getDrive();
   try {
-    const r = await drive.files.get({ fileId: COMMERCIAL_FOLDER, fields: 'id,name' });
+    const r = await drive.files.get({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true, fileId: COMMERCIAL_FOLDER, fields: 'id,name' });
     return { success: true, connected: true, folder: r.data.name, folderId: COMMERCIAL_FOLDER };
   } catch (e) {
     return { success: false, error: e.message };
@@ -101,6 +105,8 @@ async function recentFiles() {
     let pt = null;
     do {
       const r = await drive.files.list({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
         q, fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, parents)',
         pageSize: 500, pageToken: pt || undefined,
       });
@@ -183,6 +189,8 @@ async function tdsFiles() {
     let pt = null;
     do {
       const r = await drive.files.list({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
         q, fields: 'nextPageToken, files(id, name, mimeType, modifiedTime, size, parents)',
         pageSize: 500, pageToken: pt || undefined,
       });
@@ -226,7 +234,9 @@ async function tdsFiles() {
     const batch = parentIds.slice(i, i + 50);
     await Promise.all(batch.map(async (pid) => {
       try {
-        const r = await drive.files.get({ fileId: pid, fields: 'id,name' });
+        const r = await drive.files.get({
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true, fileId: pid, fields: 'id,name' });
         folderNames[pid] = r.data.name;
       } catch { folderNames[pid] = 'Unknown'; }
     }));
