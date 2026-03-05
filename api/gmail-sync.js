@@ -201,7 +201,7 @@ Odgovori SAMO JSON:
           timestamp: new Date(),
         });
 
-        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName });
+        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName, _scanError: parsed._error || null });
       }
 
       // 9. Označi email kao obrađen
