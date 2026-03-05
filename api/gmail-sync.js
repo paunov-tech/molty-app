@@ -161,7 +161,7 @@ Odgovori SAMO JSON:
             const aiData = await aiRes.json();
             const text = aiData.content?.[0]?.text || '';
             const match = text.match(/\{[\s\S]*\}/);
-            if (match) parsed = JSON.parse(match[0]);
+            if (match) { parsed = JSON.parse(match[0]); } else { parsed = { type: 'no_json', _rawResponse: text.substring(0, 200) }; }
           }
         } catch (parseErr) {
           console.error('[gmail-sync] AI scan failed:', parseErr.message, parseErr.stack);
