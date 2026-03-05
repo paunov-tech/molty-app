@@ -16,7 +16,10 @@ export default async function handler(req, res) {
     const { getFirestore } = await import("firebase-admin/firestore");
 
     if (!getApps().length) {
-      const sa = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+      const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  let sa;
+  try { sa = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); }
+  catch { sa = JSON.parse(raw); }
       initializeApp({ credential: cert(sa) });
     }
 

@@ -3,7 +3,10 @@ import { getFirestore } from "firebase-admin/firestore";
 
 function initAdmin() {
   if (getApps().length > 0) return;
-  const sa = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  let sa;
+  try { sa = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); }
+  catch { sa = JSON.parse(raw); }
   initializeApp({ credential: cert(sa) });
 }
 
