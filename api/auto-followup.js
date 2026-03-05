@@ -16,11 +16,12 @@ export default async function handler(req, res) {
     const { getFirestore } = await import("firebase-admin/firestore");
 
     if (!getApps().length) {
-      const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  let sa;
-  try { sa = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); }
-  catch { sa = JSON.parse(raw); }
-      initializeApp({ credential: cert(sa) });
+      initializeApp({ credential: cert({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'molty-portal',
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\n/g, '
+'),
+      }) });
     }
 
     const db = getFirestore();
