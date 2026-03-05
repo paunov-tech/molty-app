@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   try {
     // Učitaj nove dokumente iz Firestore
-    const { initializeApp, getApps } = await import("firebase-admin/app");
+    const { initializeApp, getApps, cert } = await import("firebase-admin/app");
     const { getFirestore } = await import("firebase-admin/firestore");
 
     if (!getApps().length) {
