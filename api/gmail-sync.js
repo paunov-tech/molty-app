@@ -15,14 +15,12 @@ function getGmail() {
 }
 
 function getDrive() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  let key;
-  try { key = JSON.parse(Buffer.from(raw, 'base64').toString('utf8')); }
-  catch { key = JSON.parse(raw); }
-  return google.drive({ version: 'v3', auth: new google.auth.GoogleAuth({
-    credentials: { client_email: key.client_email, private_key: key.private_key },
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  }) });
+  const auth = new google.auth.OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET
+  );
+  auth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+  return google.drive({ version: 'v3', auth });
 }
 
 function initAdmin() {
