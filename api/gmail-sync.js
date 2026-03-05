@@ -60,8 +60,8 @@ export default async function handler(req, res) {
     // 1. Nađi nepročitane emailove sa attachmentima
     const listRes = await gmail.users.messages.list({
       userId: 'me',
-      q: 'in:inbox has:attachment newer_than:30d',
-      maxResults: 20,
+      q: 'in:inbox has:attachment newer_than:7d',
+      maxResults: 10,
     });
 
     const messages = listRes.data.messages || [];
