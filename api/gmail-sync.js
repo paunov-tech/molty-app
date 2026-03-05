@@ -34,28 +34,25 @@ function initAdmin() {
 
 // Filter — koji emailovi su relevantni
 function isRelevant(msg) {
-  const from = msg.from?.toLowerCase() || '';
-  const subject = msg.subject?.toLowerCase() || '';
-
-  // Calderys šalje fakture, ponude, OC, otpremnice, TDS
+  const from = (msg.from || '').toLowerCase();
+  const subject = (msg.subject || '').toLowerCase();
+  // Calderys uvek prolazi
   if (from.includes('calderys.com')) return true;
-
-  // Kupci šalju RFQ i porudžbenice — prepoznaj po domenu ili subject-u
+  // Poznati kupci po domenu
   const customerDomains = ['hbis', 'amz', 'makstil', 'lafarge', 'heidelberg',
     'plamen', 'bamex', 'titan', 'moravacem', 'progress', 'ossam', 'autoflex',
     'radijator', 'vatrostalna', 'berg', 'livarna', 'cimos', 'eta',
-    'aluminij', 'impol', 'lth', 'valji', 'livar', 'seval', 'cranfield',
-    'ferro', 'miv', 'vbs', 'sevojno'];
+    'aluminij', 'impol', 'lth', 'seval', 'ferro', 'vbs', 'sevojno'];
   if (customerDomains.some(s => from.includes(s))) return true;
-
-  // Subject keywords — uhvati RFQ i PO od bilo kog kupca
-  const rfqSubjects = ['rfq', 'request for quote', 'inquiry', 'upit', 'ponuda',
-    'narudžba', 'narudzba', 'purchase order', 'porudžbenica', 'porudzbenica',
-    'order', 'zahtev', 'zahjev'];
-  if (rfqSubjects.some(s => subject.includes(s))) return true;
-
-  return false;
+  // Subject keywords
+  const keywords = ['rfq', 'upit', 'ponuda', 'narudžba', 'narudzba',
+    'purchase order', 'porudžbenica', 'faktura', 'invoice', 'order',
+    'quotation', 'offer', 'zahtev', 'isporuka', 'otpremnica', 'tds'];
+  if (keywords.some(s => subject.includes(s))) return true;
+  // Ako ima PDF attachment — pusti kroz, Claude će odlučiti
+  return msg.hasPdf || false;
 }
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -106,47 +103,84 @@ export default async function handler(req, res) {
         messageId: id,
       };
 
-      // 3. Filter
-      if (!isRelevant(meta)) {
-        // Označi kao processed da ne čita ponovo
-        await gmail.users.messages.modify({
-          userId: 'me', id,
-          requestBody: { addLabelIds: [], removeLabelIds: ['UNREAD'] },
-        });
-        continue;
-      }
-
-      // 4. Nađi PDF attachmente
+      // 3. Nađi PDF attachmente
       const parts = msgRes.data.payload?.parts || [];
       const pdfParts = parts.filter(p =>
         p.filename?.endsWith('.pdf') || p.mimeType === 'application/pdf'
       );
 
+      // 4. Filter — ako nema PDF, preskoči
+      if (pdfParts.length === 0) {
+        await gmail.users.messages.modify({ userId: 'me', id, requestBody: { removeLabelIds: ['UNREAD'] } });
+        continue;
+      }
+
       for (const part of pdfParts) {
         if (!part.body?.attachmentId) continue;
 
-        // 5. Preuzmi attachment
+        // 5. Preuzmi PDF buffer
         const attRes = await gmail.users.messages.attachments.get({
           userId: 'me', messageId: id, id: part.body.attachmentId,
         });
-
         const fileBuffer = Buffer.from(attRes.data.data, 'base64');
+        const pdfBase64 = attRes.data.data;
 
-        // 6. Upload na Drive
+        // 6. Claude skenira PDF — kupac, tip, materijali
+        let parsed = { type: 'unknown', customer: { name: null, country: null }, items: [], documentNumber: null, totalAmount: null, currency: 'EUR' };
+        try {
+          const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
+          const prompt = `Analiziraj ovaj poslovni dokument iz industrije vatrostalnih materijala (Calderys).
+KONTEKST: Calderys je dobavljač. Kupac je firma kojoj se šalje dokument.
+- Faktura/Ponuda/OC: kupac je "Bill To", "Sold To", "Company", "Quotation For", "To:"
+- Calderys varijante su UVEK supplier, NIKAD customer: Calderys Austria/DE/Serbia, SIAL
+- Traži materijale: CALDE, SILICA MIX, PLAST, PLICAST, ALKON, PORIT, OPAL
+Odgovori SAMO JSON:
+{"type":"invoice|offer|po|oc|other","documentNumber":null,"date":null,"customer":{"name":null,"country":null,"city":null},"supplier":{"name":null},"items":[{"material":null,"quantity":null,"unit":null,"unitPrice":null,"totalPrice":null}],"totalAmount":null,"currency":"EUR"}`;
+
+          const aiRes = await fetch(ANTHROPIC_API, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': process.env.ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01',
+              'anthropic-beta': 'pdfs-2024-09-25',
+            },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-5',
+              max_tokens: 1500,
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } },
+                  { type: 'text', text: prompt },
+                ],
+              }],
+            }),
+          });
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            const text = aiData.content?.[0]?.text || '';
+            const match = text.match(/\{[\s\S]*\}/);
+            if (match) parsed = JSON.parse(match[0]);
+          }
+        } catch (parseErr) {
+          console.warn('[gmail-sync] AI scan failed:', parseErr.message);
+        }
+
+        // 7. Upload na Drive
         const fileName = `${new Date().toISOString().slice(0,10)}_email_${part.filename}`;
         const driveRes = await drive.files.create({
           supportsAllDrives: true,
-          requestBody: {
-            name: fileName,
-            parents: [FOLDER_ID],
-          },
+          requestBody: { name: fileName, parents: [FOLDER_ID] },
           media: {
             mimeType: 'application/pdf',
             body: new (await import('stream')).Readable({ read() { this.push(fileBuffer); this.push(null); } }),
           },
           fields: 'id, name',
         });
-        // Upiši u Firestore docworker — DocCenter skenira
+
+        // 8. Upiši u Firestore docworker sa parsed podacima
+        const customerName = typeof parsed.customer === 'object' ? parsed.customer?.name : parsed.customer;
         await db.collection('docworker').add({
           fileName,
           driveId: driveRes.data.id,
@@ -156,11 +190,20 @@ export default async function handler(req, res) {
           subject: meta.subject,
           date: meta.date,
           status: 'new',
+          docType: parsed.type || 'unknown',
+          customer: customerName || null,
+          customerCountry: parsed.customer?.country || null,
+          invoiceNo: parsed.documentNumber || null,
+          amount: parsed.totalAmount || null,
+          currency: parsed.currency || 'EUR',
+          items: parsed.items || [],
           timestamp: new Date(),
         });
-        results.push({ file: fileName, driveId: driveRes.data.id });
+
+        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName });
       }
 
+      // 9. Označi email kao obrađen
       // 8. Označi email kao obrađen
       await gmail.users.messages.modify({
         userId: 'me', id,
