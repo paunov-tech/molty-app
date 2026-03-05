@@ -69,6 +69,8 @@ Odgovor treba biti koncizan, profesionalan i direktan. Max 200 reči.`;
       await db.collection("docworker").doc(doc.id).update({
         status: "drafted",
         draft,
+        draftBody: draft,
+        draftSubject: `Re: ${doc.subject || doc.fileName || 'Dokument'}`,
         draftedAt: new Date().toISOString()
       });
 
