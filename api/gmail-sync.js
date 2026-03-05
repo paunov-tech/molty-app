@@ -164,7 +164,8 @@ Odgovori SAMO JSON:
             if (match) parsed = JSON.parse(match[0]);
           }
         } catch (parseErr) {
-          console.warn('[gmail-sync] AI scan failed:', parseErr.message);
+          console.error('[gmail-sync] AI scan failed:', parseErr.message, parseErr.stack);
+          parsed = { type: 'scan_error', _error: parseErr.message };
         }
 
         // 7. Upload na Drive
