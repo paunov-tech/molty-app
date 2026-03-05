@@ -34,8 +34,18 @@ function initAdmin() {
 
 // Filter — koji emailovi su relevantni
 function isRelevant(msg) {
-  // Accept all emails with PDF attachments — filter later in DocCenter
-  return true;
+  const from = msg.from?.toLowerCase() || '';
+  const subject = msg.subject?.toLowerCase() || '';
+  const knownSenders = ['calderys', 'hbis', 'amz', 'makstil', 'lafarge', 'heidelberg',
+    'plamen', 'bamex', 'titan', 'moravacem', 'progress', 'ossam', 'autoflex',
+    'radijator', 'vatrostalna', 'berg', 'livarna', 'cimos', 'eta', 'sonja',
+    'mayerhofer', 'aluminij', 'impol', 'lth', 'valji', 'livar'];
+  const knownSubjects = ['invoice', 'faktura', 'offer', 'ponuda', 'order', 'narudžba',
+    'narudzba', 'tds', 'delivery', 'otpremnica', 'rfq', 'quotation', 'ponuda',
+    'price', 'cena', 'isporuka', 'cmr', 'delivery note', 'receipt'];
+  const fromMatch = knownSenders.some(s => from.includes(s));
+  const subjectMatch = knownSubjects.some(s => subject.includes(s));
+  return fromMatch || subjectMatch;
 }
 
 export default async function handler(req, res) {
@@ -60,8 +70,8 @@ export default async function handler(req, res) {
     // 1. Nađi nepročitane emailove sa attachmentima
     const listRes = await gmail.users.messages.list({
       userId: 'me',
-      q: 'in:inbox has:attachment newer_than:7d',
-      maxResults: 10,
+      q: 'is:unread has:attachment -label:MOLTY-processed',
+      maxResults: 20,
     });
 
     const messages = listRes.data.messages || [];
