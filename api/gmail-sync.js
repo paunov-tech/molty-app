@@ -34,13 +34,8 @@ function initAdmin() {
 
 // Filter — koji emailovi su relevantni
 function isRelevant(msg) {
-  const from = msg.from?.toLowerCase() || '';
-  const subject = msg.subject?.toLowerCase() || '';
-  const knownSenders = ['calderys', 'hbis', 'amz', 'makstil', 'lafarge', 'heidelberg', 'plamen', 'bamex', 'titan'];
-  const knownSubjects = ['invoice', 'faktura', 'offer', 'ponuda', 'order', 'narudžba', 'tds', 'delivery', 'otpremnica'];
-  const fromMatch = knownSenders.some(s => from.includes(s));
-  const subjectMatch = knownSubjects.some(s => subject.includes(s));
-  return fromMatch || subjectMatch;
+  // Accept all emails with PDF attachments — filter later in DocCenter
+  return true;
 }
 
 export default async function handler(req, res) {
@@ -135,6 +130,8 @@ export default async function handler(req, res) {
         await db.collection('docworker').add({
           fileName,
           driveId: driveRes.data.id,
+          gmailId: id,
+          messageId: id,
           source: 'gmail',
           from: meta.from,
           subject: meta.subject,
