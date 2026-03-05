@@ -128,7 +128,7 @@ export default async function handler(req, res) {
           },
           media: {
             mimeType: 'application/pdf',
-            body: require('stream').Readable.from(fileBuffer),
+            body: new (await import('stream')).Readable({ read() { this.push(fileBuffer); this.push(null); } }),
           },
           fields: 'id, name',
         });
