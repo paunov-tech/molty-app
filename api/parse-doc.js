@@ -102,38 +102,48 @@ function buildPrompt(fileName, docType) {
 }
 
 function buildCommercialPrompt(fileName) {
-  return `Analiziraj ovaj poslovni dokument (faktura/ponuda) iz industrije vatrostalnih materijala.
+  return `Analiziraj ovaj poslovni dokument iz industrije vatrostalnih materijala (Calderys).
 Ime fajla: ${fileName}
+
+KONTEKST: Calderys je dobavljač vatrostalnih materijala. Dokumenti su:
+- Fakture (Invoice): Calderys šalje kupcu — kupac je "Bill To", "Sold To", "Customer"
+- Ponude (Quotation/Offer): Calderys nudi kupcu — kupac je "Quotation For", "To", "Attention", "Customer"
+- Narudžbenice (PO): Kupac šalje Calderys-u — kupac je pošiljalac
+- OC (Order Confirmation): Calderys potvrđuje kupcu
+
+PRAVILA:
+- "customer" = krajnji kupac (HBIS, AMZ, Makstil, Lafarge, ETA, Titan, Progress itd) — NIKAD Calderys
+- Calderys varijante su uvek supplier: Calderys Austria, Calderys AT, Calderys DE, Calderys Serbia, SIAL
+- Traži ime firme kupca u: "Attention:", "To:", "Bill To:", "Sold To:", "Quotation For:", adresi primaoca
+- Za items: traži materijale koji počinju sa CALDE, SILICA, PLAST, PLICAST, ALKON, PORIT, OPAL itd
 
 Odgovori ISKLJUČIVO u JSON formatu:
 {
-  "type": "invoice|offer|credit_note|other",
+  "type": "invoice|offer|po|oc|credit_note|other",
   "documentNumber": "string or null",
   "date": "YYYY-MM-DD or null",
   "customer": {
-    "name": "ime kupca/firme",
+    "name": "ime kupca ili null",
     "country": "ISO 2-letter or null",
     "city": "grad or null"
   },
-  "supplier": {
-    "name": "dobavljač or null"
-  },
+  "supplier": { "name": "Calderys varijanta or null" },
   "items": [
     {
       "material": "naziv materijala",
-      "quantity": number_or_null,
-      "unit": "kg|t|kom|m2|null",
-      "unitPrice": number_or_null,
-      "totalPrice": number_or_null,
+      "quantity": null,
+      "unit": "kg|t|kom|null",
+      "unitPrice": null,
+      "totalPrice": null,
       "currency": "EUR|USD|RSD|null"
     }
   ],
-  "totalAmount": number_or_null,
+  "totalAmount": null,
   "currency": "EUR|USD|RSD|null"
 }
-
-Odgovori SAMO JSON, bez dodatnog teksta.`;
+Odgovori SAMO JSON, bez dodatnog teksta.\`;
 }
+
 
 function buildTdsPrompt(fileName) {
   return `Ovo je Technical Data Sheet (TDS) vatrostalnog materijala kompanije Calderys.
