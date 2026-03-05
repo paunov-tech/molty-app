@@ -146,22 +146,41 @@ export default async function handler(req, res) {
           },
           fields: 'id, name',
         });
+// ── Pozovi parse-doc za AI klasifikaciju ──
+        let parsed = { docType: 'unknown', customer: null };
+        try {
+          const workerBase = `https://${req.headers.host}`;
+          const parseRes = await fetch(`${workerBase}/api/parse-doc?docId=${driveRes.data.id}&docType=commercial`, {
+            headers: { 'Authorization': `Bearer ${process.env.CRON_SECRET}` }
+          });
+          if (parseRes.ok) {
+            const parseData = await parseRes.json();
+            if (parseData.success && parseData.parsed) {
+              parsed = parseData.parsed;
+            }
+          }
+        } catch (pe) {
+          console.warn('[gmail-sync] parse-doc failed:', pe.message);
+        }
 
-        // 7. Upiši u Firestore docworker
+        // Upiši u Firestore docworker sa parsed podacima
         await db.collection('docworker').add({
           fileName,
           driveId: driveRes.data.id,
           gmailId: id,
-          messageId: id,
           source: 'gmail',
           from: meta.from,
           subject: meta.subject,
           date: meta.date,
           status: 'new',
+          docType: parsed.docType || parsed.type || 'unknown',
+          customer: parsed.customer || parsed.kupac || null,
+          invoiceNo: parsed.invoiceNo || parsed.broj || null,
+          amount: parsed.amount || parsed.iznos || null,
           timestamp: new Date(),
         });
 
-        results.push({ file: fileName, driveId: driveRes.data.id });
+        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.docType, customer: parsed.customer });
       }
 
       // 8. Označi email kao obrađen
