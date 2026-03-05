@@ -36,16 +36,25 @@ function initAdmin() {
 function isRelevant(msg) {
   const from = msg.from?.toLowerCase() || '';
   const subject = msg.subject?.toLowerCase() || '';
-  const knownSenders = ['calderys', 'hbis', 'amz', 'makstil', 'lafarge', 'heidelberg',
+
+  // Calderys šalje fakture, ponude, OC, otpremnice, TDS
+  if (from.includes('calderys.com')) return true;
+
+  // Kupci šalju RFQ i porudžbenice — prepoznaj po domenu ili subject-u
+  const customerDomains = ['hbis', 'amz', 'makstil', 'lafarge', 'heidelberg',
     'plamen', 'bamex', 'titan', 'moravacem', 'progress', 'ossam', 'autoflex',
-    'radijator', 'vatrostalna', 'berg', 'livarna', 'cimos', 'eta', 'sonja',
-    'mayerhofer', 'aluminij', 'impol', 'lth', 'valji', 'livar'];
-  const knownSubjects = ['invoice', 'faktura', 'offer', 'ponuda', 'order', 'narudžba',
-    'narudzba', 'tds', 'delivery', 'otpremnica', 'rfq', 'quotation', 'ponuda',
-    'price', 'cena', 'isporuka', 'cmr', 'delivery note', 'receipt'];
-  const fromMatch = knownSenders.some(s => from.includes(s));
-  const subjectMatch = knownSubjects.some(s => subject.includes(s));
-  return fromMatch || subjectMatch;
+    'radijator', 'vatrostalna', 'berg', 'livarna', 'cimos', 'eta',
+    'aluminij', 'impol', 'lth', 'valji', 'livar', 'seval', 'cranfield',
+    'ferro', 'miv', 'vbs', 'sevojno'];
+  if (customerDomains.some(s => from.includes(s))) return true;
+
+  // Subject keywords — uhvati RFQ i PO od bilo kog kupca
+  const rfqSubjects = ['rfq', 'request for quote', 'inquiry', 'upit', 'ponuda',
+    'narudžba', 'narudzba', 'purchase order', 'porudžbenica', 'porudzbenica',
+    'order', 'zahtev', 'zahjev'];
+  if (rfqSubjects.some(s => subject.includes(s))) return true;
+
+  return false;
 }
 
 export default async function handler(req, res) {
