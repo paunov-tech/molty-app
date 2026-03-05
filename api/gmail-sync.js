@@ -226,7 +226,7 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           timestamp: new Date(),
         });
 
-        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName, _scanError: parsed._error || null });
+        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName, invoiceNo: parsed.documentNumber || null, amount: parsed.totalAmount || null, currency: parsed.currency || null, items: parsed.items || [] });
       }
 
       // 9. Označi email kao obrađen
