@@ -28,6 +28,7 @@ export default async function handler(req, res) {
       }) });
     }
 
+    const db = getFirestore();
     const messageId = req.body?.messageId;
     let docs;
     if (messageId) {
