@@ -192,7 +192,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-  const { docId, test, docType } = req.query;
+  const { docId, test, docType } = { ...req.query, ...req.body };
   if (!docId) return res.status(200).json({ success: false, error: 'Missing docId' });
 
   try {
