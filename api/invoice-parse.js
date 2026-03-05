@@ -25,10 +25,11 @@ Odgovori ISKLJUČIVO u JSON formatu:
       "co": "ISO 2-slovno: RS ili SI ili BA ili MK ili BG ili HR",
       "items": [
         {
-          "desc": "naziv materijala",
+          "code": "SAP/artikal kod ako postoji (npr. MAF40050) ili null",
+          "desc": "pun naziv materijala",
           "qty": količina kao broj,
           "u": "kg ili t ili kom ili m2",
-          "price": jedinična cena kao broj,
+          "p": jedinična cena kao broj,
           "t": ukupna cena stavke kao broj
         }
       ]
