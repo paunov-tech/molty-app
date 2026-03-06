@@ -31,7 +31,7 @@ export default async function handler(req, res) {
       const age = Date.now() - new Date(data.generatedAt).getTime();
       // Vrati keširani ako je mlađi od 4h
       if (age < 4 * 60 * 60 * 1000) {
-        return res.json({ ok: true, cached: true, ...data });
+        return res.json({ ok: true,  ...data });
       }
     }
 
