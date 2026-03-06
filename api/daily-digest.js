@@ -65,7 +65,16 @@ Odgovori SAMO JSON.`;
     const aiData = await aiRes.json();
     const text = aiData.content?.[0]?.text || '';
     const match = text.match(/\{[\s\S]*\}/);
-    const sections = match ? JSON.parse(match[0]) : { prioriteti: text, dokumenti: '', trziste: '', konkurencija: '', sansa: '' };
+    let sections = { prioriteti: '', dokumenti: '', trziste: '', konkurencija: '', sansa: '' };
+    if (match) {
+      try {
+        sections = JSON.parse(match[0]);
+      } catch {
+        // Fallback — izvuci sekcije ručno
+        const extract = (key) => { const m = text.match(new RegExp('"' + key + '"\\s*:\\s*"([^"]*)"')); return m ? m[1] : ''; };
+        sections = { prioriteti: extract('prioriteti') || text.substring(0,200), dokumenti: extract('dokumenti'), trziste: extract('trziste'), konkurencija: extract('konkurencija'), sansa: extract('sansa') };
+      }
+    }
 
     const today = new Date().toLocaleDateString('sr-Latn-RS', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     const digestText = `PRIORITETI: ${sections.prioriteti}\n\nDOKUMENTI: ${sections.dokumenti}\n\nTRŽIŠTE: ${sections.trziste}\n\nKONKURENCIJA: ${sections.konkurencija}\n\nŠANSA DANA: ${sections.sansa}`;
