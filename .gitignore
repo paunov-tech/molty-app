@@ -18,3 +18,4 @@ molty-key.json
 .env*.local
 .vercel
 node_modules/
+.env.backup-worker
