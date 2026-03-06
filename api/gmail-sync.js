@@ -162,7 +162,10 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
     }
   ],
   "totalAmount": number_or_null,
-  "currency": "EUR|USD|RSD|null"
+  "currency": "EUR|USD|RSD|null",
+  "confidence": number_0_to_100,
+  "reasoning": "Kratki sažetak dokumenta na srpskom: tip, kupac, šta se traži/nudi, ključne stavke. Max 2 rečenice.",
+  "isBusinessRelevant": true_or_false
 }`;
 
           const aiRes = await fetch(ANTHROPIC_API, {
@@ -229,6 +232,9 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           amount: parsed.totalAmount || null,
           currency: parsed.currency || 'EUR',
           items: parsed.items || [],
+          confidence: parsed.confidence || null,
+          reasoning: parsed.reasoning || null,
+          isBusinessRelevant: parsed.isBusinessRelevant !== false,
           timestamp: new Date(),
         });
 
