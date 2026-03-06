@@ -1,100 +1,87 @@
-// api/daily-digest.js — Daily Digest za CommHub
-// Generiše dnevni AI pregled aktivnosti
+// api/daily-digest.js — Daily Digest, šalje email svako jutro
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method === "OPTIONS") return res.status(200).end();
 
-  const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEYS;
-  if (!ANTHROPIC_API_KEY) return res.status(500).json({ error: "ANTHROPIC_API_KEY nije postavljen" });
+  const secret = (req.headers.authorization || '').replace('Bearer ', '');
+  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    const { initializeApp, getApps, cert } = await import("firebase-admin/app");
-    const { getFirestore } = await import("firebase-admin/firestore");
-
+    // 1. Firebase
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+    const { getFirestore } = await import('firebase-admin/firestore');
     if (!getApps().length) {
       initializeApp({ credential: cert({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'molty-portal',
+        projectId: 'molty-portal',
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
         privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-      }) });
+      })});
     }
-
     const db = getFirestore();
 
-    const pendingFollowups = followupsSnap.docs.map(d => d.data().customerName);
-    const pipelineData = pipelineDoc.exists ? pipelineDoc.data() : {};
+    // 2. Podaci
+    const [followupsSnap, forwardsSnap, docsSnap] = await Promise.all([
+      db.collection('auto_followups').where('status', '==', 'pending').limit(20).get(),
+      db.collection('tds_forwards').where('status', '==', 'pending').limit(20).get(),
+      db.collection('docworker').where('status', '==', 'new').limit(20).get(),
+    ]);
+
+    const followups = followupsSnap.docs.map(d => d.data().customerName || '?');
+    const newDocs = docsSnap.docs.map(d => `${d.data().customer || '?'} — ${d.data().docType || '?'}`);
     const pendingForwards = forwardsSnap.size;
 
-    const prompt = `Ti si ANVIL™ AI asistent za Miroslava Paunova, TSR za Calderys Balkani.
-Napiši kratak dnevni izveštaj (max 200 reči) na srpskom:
-
-Podaci:
-- Follow-up kupci (čekaju odgovor): ${pendingFollowups.join(", ") || "nema"}
-- Pipeline: ${pipelineData.incomplete || 0} nepotpunih lanaca od ${pipelineData.total || 0}
+    // 3. Claude generiše izveštaj
+    const prompt = `Ti si ANVIL™ AI asistent za Miroslava Paunova, TSR za Calderys Balkani (Srbija, BiH, Makedonija, Bugarska, Hrvatska, Crna Gora).
+Napiši kratak dnevni izveštaj na srpskom jeziku (max 200 reči):
+- Follow-up kupci koji čekaju odgovor: ${followups.join(', ') || 'nema'}
+- Novi dokumenti u sistemu: ${newDocs.join(', ') || 'nema'}
 - TDS dokumenti čekaju prosleđivanje: ${pendingForwards}
+Format: 3 kratke sekcije — PRIORITETI DANAS, DOKUMENTI, AKCIJE. Bez markdown.`;
 
-Format: 3 sekcije (Prioriteti danas, Pipeline status, Akcije), bez markdown.`;
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
+    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
-        messages: [{ role: "user", content: prompt }]
-      })
+        messages: [{ role: 'user', content: prompt }],
+      }),
     });
+    const aiData = await aiRes.json();
+    const digest = aiData.content?.[0]?.text || 'Greška pri generisanju izveštaja';
 
-    const data = await response.json();
-    const digest = data.content?.[0]?.text || "";
+    // 4. Sačuvaj u Firestore
+    const result = { digest, pendingFollowups: followups.length, pendingForwards, newDocs: newDocs.length, generatedAt: new Date().toISOString() };
+    await db.collection('daily_digest').doc('latest').set(result);
 
-    const result = {
+    // 5. Pošalji email
+    const { google } = await import('googleapis');
+    const oauth2 = new google.auth.OAuth2(process.env.GMAIL_CLIENT_ID, process.env.GMAIL_CLIENT_SECRET);
+    oauth2.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+    const gmail = google.gmail({ version: 'v1', auth: oauth2 });
+
+    const subject = `ANVIL™ Dnevni Izveštaj — ${new Date().toLocaleDateString('sr-Latn-RS')}`;
+    const raw = [
+      `To: paunov@calderyserbia.com`,
+      `Subject: =?utf-8?B?${Buffer.from(subject).toString('base64')}?=`,
+      `Content-Type: text/plain; charset=utf-8`,
+      ``,
       digest,
-      pendingFollowups: pendingFollowups.length,
-      pipelineIncomplete: pipelineData.incomplete || 0,
-      pendingForwards,
-      generatedAt: new Date().toISOString()
-    };
+    ].join('\r\n');
 
-    await db.collection("daily_digest").doc("latest").set(result);
+    const profile = await gmail.users.getProfile({ userId: 'me' });
+    await gmail.users.messages.send({ userId: 'me', requestBody: { raw: Buffer.from(raw).toString('base64url') } });
 
+    return res.json({ ok: true, ...result, sentFrom: profile.data.emailAddress });
 
-    // Pošalji email na paunov@calderyserbia.com
-    let emailError = null;
-    try {
-      const { google } = await import("googleapis");
-      const oauth2 = new google.auth.OAuth2(
-        process.env.GMAIL_CLIENT_ID,
-        process.env.GMAIL_CLIENT_SECRET
-      );
-      oauth2.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
-      const gmail = google.gmail({ version: "v1", auth: oauth2 });
-      const subject = `ANVIL™ Dnevni Izveštaj — ${new Date().toLocaleDateString("sr-Latn-RS")}`;
-      const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
-      const raw = [
-        `To: paunov@calderyserbia.com`,
-        `Subject: ${utf8Subject}`,
-        `Content-Type: text/plain; charset=utf-8`,
-        ``,
-        digest
-      ].join("\r\n");
-      const profile = await gmail.users.getProfile({ userId: "me" });
-      result.sentFrom = profile.data.emailAddress;
-      await gmail.users.messages.send({ userId: "me", requestBody: { raw: Buffer.from(raw).toString("base64url") } });
-    } catch (mailErr) {
-      emailError = mailErr.message;
-      throw new Error("GMAIL: " + mailErr.message);
-    }
-    res.json({ ok: true, ...result, emailError });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
+    console.error('[daily-digest]', e.message);
+    return res.status(500).json({ ok: false, error: e.message });
   }
 }
