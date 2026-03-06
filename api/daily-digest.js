@@ -30,8 +30,8 @@ export default async function handler(req, res) {
     const newDocs = docsSnap.docs.map(d => `${d.data().customer || '?'} — ${d.data().docType || '?'} (${d.data().amount ? d.data().amount + ' EUR' : 'iznos nepoznat'})`);
     const pendingForwards = forwardsSnap.size;
 
-    const prompt = `Ti si ANVIL™ AI asistent za Miroslava Paunova, TSR za Calderys Balkani.
-Calderys prodaje vatrostalne materijale u: Srbija, BiH, Makedonija, Bugarska, Hrvatska, Crna Gora.
+    const prompt = `Ti si ANVIL™ AI asistent za Miroslava Paunova, TSR za Calderys South-East Europe (SEE).
+Calderys prodaje vatrostalne materijale u regionu SEE: Srbija, BiH, Makedonija, Bugarska, Hrvatska, Crna Gora. Fokus na čeličane, cementare, livnice i aluminijumsku industriju.
 Kupci: čeličane (HBIS, AMZ, Makstil), cementare (Lafarge, Heidelberg), livnice (Livarna Titan, LTH), industrija aluminijuma.
 
 PODACI ZA DANAS:
@@ -43,8 +43,8 @@ Napiši dnevni izveštaj na srpskom u JSON formatu:
 {
   "prioriteti": "2-3 konkretne akcije za danas",
   "dokumenti": "pregled novih dokumenata i šta treba uraditi",
-  "trziste": "kratka BI napomena o tržištu vatrostalnih materijala na Balkanu — šta se dešava sa čeličanama, cementarama, aluminjumskom industrijom, koji trendovi utiču na prodaju vatrostalnih materijala",
-  "konkurencija": "kratka napomena o konkurentima (RHI Magnesita, Vesuvius, Refratechnik, Calderys competition) — generalni trendovi, ne izmišljaj specifične vesti",
+  "trziste": "BI napomena o tržištu vatrostalnih materijala u SEE regionu — trendovi u čeličanama (EAF vs BOF), cementnoj industriji, aluminijumu. Napiši samo ono što sigurno znaš, ne izmišljaj podatke. Ako nemaš aktuelne podatke, napiši opšti trend.",
+  "konkurencija": "Poznati konkurenti u SEE: RHI Magnesita (dominantan), Vesuvius, Refratechnik, Harbison-Walker. Napiši jedan opšti strateški komentar — bez izmišljenih vesti.",
   "sansa": "jedna konkretna prodajna šansa ili preporuka za Miroslava na osnovu podataka"
 }
 Odgovori SAMO JSON.`;
@@ -85,7 +85,7 @@ Odgovori SAMO JSON.`;
       <span style="color:#6b7280;font-size:14px;margin-left:8px;">Daily Intelligence</span>
     </div>
     <div style="color:#9ca3af;font-size:13px;">${today}</div>
-    <div style="color:#6b7280;font-size:12px;margin-top:4px;">Miroslav Paunov · TSR Calderys Balkani</div>
+    <div style="color:#6b7280;font-size:12px;margin-top:4px;">Miroslav Paunov · TSR Calderys SEE</div>
   </div>
 
   <!-- Prioriteti -->
