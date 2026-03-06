@@ -83,7 +83,31 @@ Format: 3 sekcije (Prioriteti danas, Pipeline status, Akcije), bez markdown.`;
 
     await db.collection("daily_digest").doc("latest").set(result);
 
-    res.json({ ok: true, ...result });
+
+    // Pošalji email na paunov@calderyserbia.com
+    let emailError = null;
+    try {
+      const { google } = await import("googleapis");
+      const oauth2 = new google.auth.OAuth2(
+        process.env.GMAIL_CLIENT_ID,
+        process.env.GMAIL_CLIENT_SECRET
+      );
+      oauth2.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN });
+      const gmail = google.gmail({ version: "v1", auth: oauth2 });
+      const subject = `ANVIL™ Dnevni Izveštaj — ${new Date().toLocaleDateString("sr-Latn-RS")}`;
+      const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString("base64")}?=`;
+      const raw = [
+        `To: paunov@calderyserbia.com`,
+        `Subject: ${utf8Subject}`,
+        `Content-Type: text/plain; charset=utf-8`,
+        ``,
+        digest
+      ].join("\r\n");
+      await gmail.users.messages.send({ userId: "me", requestBody: { raw: Buffer.from(raw).toString("base64url") } });
+    } catch (mailErr) {
+      emailError = mailErr.message;
+    }
+    res.json({ ok: true, ...result, emailError });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: e.message });
