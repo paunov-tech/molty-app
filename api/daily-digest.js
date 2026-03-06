@@ -31,23 +31,23 @@ export default async function handler(req, res) {
     const pendingForwards = forwardsSnap.size;
 
     const prompt = `Ti si ANVIL™ AI asistent za Miroslava Paunova, TSR za Calderys South-East Europe (SEE).
-Calderys prodaje vatrostalne materijale u regionu SEE: Srbija, BiH, Makedonija, Bugarska, Hrvatska, Crna Gora. Fokus na čeličane, cementare, livnice i aluminijumsku industriju.
-Kupci: čeličane (HBIS, AMZ, Makstil), cementare (Lafarge, Heidelberg), livnice (Livarna Titan, LTH), industrija aluminijuma.
+Calderys prodaje vatrostalne materijale u: Srbija, BiH, Makedonija, Bugarska, Hrvatska, Crna Gora.
+Kupci: čeličane (HBIS, AMZ, Makstil), cementare (Lafarge, Heidelberg), livnice (Livarna Titan, LTH), aluminijum.
 
 PODACI ZA DANAS:
 - Follow-up kupci koji čekaju odgovor: ${followups.join(', ') || 'nema'}
 - Novi dokumenti u sistemu: ${newDocs.length > 0 ? newDocs.join(' | ') : 'nema'}
 - TDS dokumenti čekaju prosleđivanje: ${pendingForwards}
 
-Napiši dnevni izveštaj na srpskom u JSON formatu:
+Napiši dnevni izveštaj na srpskom. Vrati SAMO validan JSON objekat sa ovim ključevima (svaki mora biti string sa min 2 rečenice):
 {
-  "prioriteti": "2-3 konkretne akcije za danas",
-  "dokumenti": "pregled novih dokumenata i šta treba uraditi",
-  "trziste": "BI napomena o tržištu vatrostalnih materijala u SEE regionu — trendovi u čeličanama (EAF vs BOF), cementnoj industriji, aluminijumu. Napiši samo ono što sigurno znaš, ne izmišljaj podatke. Ako nemaš aktuelne podatke, napiši opšti trend.",
-  "konkurencija": "Poznati konkurenti u SEE: RHI Magnesita (dominantan), Vesuvius, Refratechnik, Harbison-Walker. Napiši jedan opšti strateški komentar — bez izmišljenih vesti.",
-  "sansa": "jedna konkretna prodajna šansa ili preporuka za Miroslava na osnovu podataka"
-}
-Odgovori SAMO JSON.`;
+  "prioriteti": "...",
+  "dokumenti": "...",
+  "trziste": "...",
+  "konkurencija": "...",
+  "sansa": "..."
+}`;
+
 
     const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
