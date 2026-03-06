@@ -68,7 +68,14 @@ Napiši dnevni izveštaj na srpskom. Vrati SAMO validan JSON objekat sa ovim klj
     let sections = { prioriteti: '', dokumenti: '', trziste: '', konkurencija: '', sansa: '' };
     if (match) {
       try {
-        sections = JSON.parse(match[0]);
+        const raw = JSON.parse(match[0]);
+        sections = {
+          prioriteti: raw.prioriteti || raw.prioriteti_danas || raw.priorities || raw.akcije || Object.values(raw)[0] || '',
+          dokumenti: raw.dokumenti || raw.documents || Object.values(raw)[1] || '',
+          trziste: raw.trziste || raw.market || raw.tržište || Object.values(raw)[2] || '',
+          konkurencija: raw.konkurencija || raw.competition || Object.values(raw)[3] || '',
+          sansa: raw.sansa || raw.opportunity || raw.šansa || Object.values(raw)[4] || '',
+        };
       } catch {
         // Fallback — izvuci sekcije ručno
         const extract = (key) => { const m = text.match(new RegExp('"' + key + '"\\s*:\\s*"([^"]*)"')); return m ? m[1] : ''; };
