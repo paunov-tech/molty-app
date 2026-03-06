@@ -24,24 +24,6 @@ export default async function handler(req, res) {
 
     const db = getFirestore();
 
-    // Učitaj poslednji digest
-    const digestDoc = await db.collection("daily_digest").doc("latest").get();
-    if (digestDoc.exists) {
-      const data = digestDoc.data();
-      const age = Date.now() - new Date(data.generatedAt).getTime();
-      // Vrati keširani ako je mlađi od 4h
-      if (age < 4 * 60 * 60 * 1000) {
-        return res.json({ ok: true,  ...data });
-      }
-    }
-
-    // Učitaj podatke
-    const [followupsSnap, pipelineDoc, forwardsSnap] = await Promise.all([
-      db.collection("auto_followups").where("status", "==", "pending").limit(10).get(),
-      db.collection("pipeline_results").doc("latest").get(),
-      db.collection("tds_forwards").where("status", "==", "pending").limit(10).get(),
-    ]);
-
     const pendingFollowups = followupsSnap.docs.map(d => d.data().customerName);
     const pipelineData = pipelineDoc.exists ? pipelineDoc.data() : {};
     const pendingForwards = forwardsSnap.size;
