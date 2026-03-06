@@ -78,7 +78,7 @@ export default async function handler(req, res) {
       userId: 'me',
       q: req.query.catchup === '1'
         ? 'has:attachment newer_than:14d'
-        : 'is:unread has:attachment -label:MOLTY-processed',
+        : 'has:attachment -label:MOLTY-processed',
       maxResults: 20,
     });
 
@@ -103,6 +103,12 @@ export default async function handler(req, res) {
         messageId: id,
       };
 
+      // 3. Dedup — preskoči ako već obrađen
+      const existingSnap = await db.collection('docworker').where('gmailId', '==', id).limit(1).get();
+      if (!existingSnap.empty) {
+        console.log('[gmail-sync] skip duplicate gmailId:', id);
+        continue;
+      }
       // 3. Nađi PDF attachmente
       const parts = msgRes.data.payload?.parts || [];
       const pdfParts = parts.filter(p =>
@@ -229,12 +235,25 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
         results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName, invoiceNo: parsed.documentNumber || null, amount: parsed.totalAmount || null, currency: parsed.currency || null, items: parsed.items || [] });
       }
 
-      // 9. Označi email kao obrađen
-      // 8. Označi email kao obrađen
-      await gmail.users.messages.modify({
-        userId: 'me', id,
-        requestBody: { removeLabelIds: ['UNREAD'] },
-      });
+      // 9. Označi email kao obrađen — dodaj MOLTY-processed label
+      try {
+        // Nađi ili kreiraj MOLTY-processed label
+        const labelsRes = await gmail.users.labels.list({ userId: 'me' });
+        let labelId = labelsRes.data.labels?.find(l => l.name === 'MOLTY-processed')?.id;
+        if (!labelId) {
+          const newLabel = await gmail.users.labels.create({
+            userId: 'me',
+            requestBody: { name: 'MOLTY-processed', labelListVisibility: 'labelHide', messageListVisibility: 'hide' },
+          });
+          labelId = newLabel.data.id;
+        }
+        await gmail.users.messages.modify({
+          userId: 'me', id,
+          requestBody: { addLabelIds: [labelId], removeLabelIds: ['UNREAD'] },
+        });
+      } catch (labelErr) {
+        console.warn('[gmail-sync] label error:', labelErr.message);
+      }
     }
 
     res.json({ ok: true, checked: messages.length, uploaded: results.length, files: results });
