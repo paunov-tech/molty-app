@@ -103,6 +103,8 @@ Format: 3 sekcije (Prioriteti danas, Pipeline status, Akcije), bez markdown.`;
         ``,
         digest
       ].join("\r\n");
+      const profile = await gmail.users.getProfile({ userId: "me" });
+      result.sentFrom = profile.data.emailAddress;
       await gmail.users.messages.send({ userId: "me", requestBody: { raw: Buffer.from(raw).toString("base64url") } });
     } catch (mailErr) {
       emailError = mailErr.message;
