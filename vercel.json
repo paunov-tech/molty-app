@@ -32,6 +32,10 @@
     {
       "path": "/api/gmail-sync",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/auto-file",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
