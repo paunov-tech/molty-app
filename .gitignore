@@ -15,3 +15,6 @@ molty-key.json
 .env.local
 # Operativni sistem smece
 .DS_Store
+.env*.local
+.vercel
+node_modules/
