@@ -189,3 +189,4 @@ export function useMaterials() { return useStore("materials"); }
 export function usePipeline() { return useStore("pipeline"); }
 export function useActions() { return useStore("actions"); }
 export function useTDS() { return useStore("tds"); }
+export function useJobs() { return useStore("jobs"); }

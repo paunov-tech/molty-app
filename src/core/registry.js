@@ -17,6 +17,7 @@ import Actions from "../modules/actions.jsx";
 import Alerts from "../modules/alerts.jsx";
 import Brain from "../modules/brain.jsx";
 import Sync from "../modules/sync.jsx";
+import JobMap from "../modules/jobmap.jsx";
 
 // ── MODULE REGISTRATION ──
 // Svaki modul: { id, label, icon, component, badge? }
@@ -86,5 +87,12 @@ export const MODULES = [
     label: "Drive Sync",
     icon: "📡",
     component: Sync,
+  },
+  {
+    id: "jobmap",
+    label: "Job Map",
+    icon: "📍",
+    badge: (s) => (s.jobs || []).filter(j => j.status === "active").length,
+    component: JobMap,
   },
 ];
