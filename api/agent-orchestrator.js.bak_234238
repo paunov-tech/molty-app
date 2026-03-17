@@ -1,4 +1,3 @@
-import { buildAnvilPrompt, estimateTokens } from "./prompt-builder.js";
 // ═══════════════════════════════════════════════════════════════
 // api/agent-orchestrator.js — ANVIL™ Agentic Backend
 // 
@@ -48,21 +47,38 @@ function initAll() {
 
 // ── Chain-of-Thought analiza jednog dokumenta ───────────────────
 async function analyzeDoc(doc) {
-  // Lego prompt builder — 55% manji prompt, isti rezultat
-  const systemPrompt = buildAnvilPrompt({
-    docType: doc.docType || "unknown",
-    customer: doc.customer || "",
-    actionMode: "full",
-    additionalContext: `Fajl: ${doc.fileName}\nOd: ${doc.from}\nSubject: ${doc.subject}\nIznos: ${doc.amount ? doc.amount + " " + (doc.currency || "EUR") : "nije naveden"}\nRef: ${doc.invoiceNo || "N/A"}\nConfidence: ${doc.confidence || "?"}%`,
-  });
-  const userPrompt = `Analiziraj ovaj poslovni dokument i odluči šta tačno treba uraditi:
+  const prompt = `Ti si ANVIL™ AI agent za Calderys South-East Europe.
+Analiziraj ovaj poslovni dokument i odluči šta tačno treba uraditi.
 
-Tip: ${doc.docType}
-Kupac: ${doc.customer || "Nepoznat"}
-Iznos: ${doc.amount ? doc.amount + " " + (doc.currency || "EUR") : "nije naveden"}
-Ref: ${doc.invoiceNo || "N/A"}
-Od: ${doc.from}
-Subject: ${doc.subject}`;
+DOKUMENT:
+  Tip: ${doc.docType}
+  Kupac: ${doc.customer || 'Nepoznat'}
+  Iznos: ${doc.amount ? doc.amount + ' ' + (doc.currency || 'EUR') : 'nije naveden'}
+  Faktura/Ref: ${doc.invoiceNo || 'N/A'}
+  Fajl: ${doc.fileName}
+  Od: ${doc.from}
+  Subject: ${doc.subject}
+  Confidence klasifikacije: ${doc.confidence || '?'}%
+  
+CHAIN-OF-THOUGHT:
+1. Da li je ovo legitiman poslovni dokument?
+2. Koji je sledeći konkretan korak u procesu?
+3. Da li postoji rizik (duplikat, greška, visoka vrednost)?
+4. Šta bi TSR (Miroslav Paunov) uradio s ovim u narednih 15 minuta?
+
+Odgovori ISKLJUČIVO u JSON:
+{
+  "reasoning": "2-3 rečenice obrazloženja",
+  "action": "fileToDrive|logRevenue|createQuote|enrichTDS|escalate|ignore",
+  "priority": "critical|high|medium|low",
+  "confidence": 0-100,
+  "suggestion": "konkretna preporuka u jednoj rečenici",
+  "flags": [],
+  "estimatedValue": null,
+  "riskNote": null
+}
+
+Flags mogući: high_value (>5000 EUR), vip_customer, urgent, duplicate_risk, complaint, new_customer`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
