@@ -69,7 +69,7 @@ export default async function handler(req, res) {
     initAdmin();
     const db = getFirestore();
     const gmail = getGmail();
-    // drive = getDrive(); // uklonjeno v2 — upload delegiran auto-file.js
+    const drive = getDrive();
 
     const FOLDER_ID = process.env.COMMERCIAL_FOLDER_ID || '1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN';
 
@@ -202,17 +202,23 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           parsed = { type: 'scan_error', _error: parseErr.message };
         }
 
-        // 7. Pripremi za strukturirani upload (auto-file.js)
+        // 7. Upload na Drive
         const fileName = `${new Date().toISOString().slice(0,10)}_email_${part.filename}`;
-        const attachmentB64 = fileBuffer.toString('base64');
+        const driveRes = await drive.files.create({
+          supportsAllDrives: true,
+          requestBody: { name: fileName, parents: [FOLDER_ID] },
+          media: {
+            mimeType: 'application/pdf',
+            body: new (await import('stream')).Readable({ read() { this.push(fileBuffer); this.push(null); } }),
+          },
+          fields: 'id, name',
+        });
 
-        // 8. Upiši u Firestore — driveStatus:'pending', auto-file.js uploaduje u COMMERCIAL/[Kupac]/[God]/[Tip]
+        // 8. Upiši u Firestore docworker sa parsed podacima
         const customerName = typeof parsed.customer === 'object' ? parsed.customer?.name : parsed.customer;
         await db.collection('docworker').add({
           fileName,
-          driveId: null,
-          driveStatus: 'pending',
-          attachmentB64,
+          driveId: driveRes.data.id,
           gmailId: id,
           source: 'gmail',
           from: meta.from,
@@ -231,7 +237,8 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           isBusinessRelevant: parsed.isBusinessRelevant !== false,
           timestamp: new Date(),
         });
-        results.push({ file: fileName, driveId: null, docType: parsed.type, customer: customerName });
+
+        results.push({ file: fileName, driveId: driveRes.data.id, docType: parsed.type, customer: customerName, invoiceNo: parsed.documentNumber || null, amount: parsed.totalAmount || null, currency: parsed.currency || null, items: parsed.items || [] });
       }
 
       // 9. Označi email kao obrađen — dodaj MOLTY-processed label
