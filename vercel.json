@@ -1,41 +1,20 @@
 {
-  "functions": {
-    "api/*.js": {
-      "memory": 256,
-      "maxDuration": 30
-    }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
-        }
-      ]
-    }
-  ],
   "crons": [
     {
-      "path": "/api/daily-digest",
+      "path": "/api/morning-brief",
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/gmail-sync",
-      "schedule": "*/30 * * * *"
+      "path": "/api/daily-digest",
+      "schedule": "0 5 * * *"
     },
     {
-      "path": "/api/auto-file",
-      "schedule": "*/30 * * * *"
+      "path": "/api/pipeline-tracker",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/drive-sync",
+      "schedule": "0 */2 * * *"
     }
   ]
 }
