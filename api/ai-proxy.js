@@ -1,26 +1,53 @@
 // api/ai-proxy.js — Siguran Claude API proxy
 // Zamjenjuje direktne VITE_ANTHROPIC_KEY pozive iz browsera
-// Koristi: fetch('/api/ai-proxy', { method:'POST', body: JSON.stringify({prompt, context}) })
+// Koristi: fetch('/api/ai-proxy', { method:'POST', body: JSON.stringify({messages, system, max_tokens}) })
+
+const ALLOWED_ORIGINS = [
+  "https://molty-platform-6jch.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:4173",
+];
+
+// Simple in-memory rate limit: max 30 requests/min per IP
+const ipMap = new Map();
+function rateOk(ip) {
+  const now = Date.now();
+  const win = 60_000;
+  const max = 30;
+  const entry = ipMap.get(ip) || { count: 0, reset: now + win };
+  if (now > entry.reset) { entry.count = 0; entry.reset = now + win; }
+  entry.count++;
+  ipMap.set(ip, entry);
+  return entry.count <= max;
+}
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin || "";
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  } else if (origin) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket?.remoteAddress || "unknown";
+  if (!rateOk(ip)) return res.status(429).json({ error: "Too many requests" });
+
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return res.status(500).json({ error: "AI proxy not configured" });
 
   try {
     const { messages, system, max_tokens = 1000, model = "claude-sonnet-4-20250514" } = req.body || {};
     if (!messages?.length) return res.status(400).json({ error: "messages required" });
 
-    // Rate limit check (osnovan — IP based)
-    // TODO: dodati Redis rate limiting za produkciju
-
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "x-api-key": key,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({ model, max_tokens, messages, ...(system && { system }) }),
