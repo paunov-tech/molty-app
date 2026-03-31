@@ -80,7 +80,7 @@ async function callClaude(content, fileName, docType) {
       'anthropic-version': '2023-06-01',
       'anthropic-beta': 'pdfs-2024-09-25',
           },
-    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2000, messages }),
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages }),
   });
 
   if (!response.ok) {

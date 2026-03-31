@@ -15,7 +15,9 @@ import { google } from 'googleapis';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
-// ── Konfig ──────────────────────────────────────────────────────
+// ── Konfig — statički fallback pragovi ──────────────────────────
+// Ovi pragovi se prepisuju živim vrijednostima iz neural_weights/action_confidence
+// koje neural-engine.js podešava na osnovu izmjerene tačnosti.
 const CONFIDENCE_THRESHOLDS = {
   fileToDrive:   { auto: 90, semi: 75 },  // strukturirani fajlovi
   logRevenue:    { auto: 88, semi: 78 },  // fakture i krediti
@@ -23,6 +25,41 @@ const CONFIDENCE_THRESHOLDS = {
   enrichTDS:     { auto: 85, semi: 70 },
   sendFollowup:  { auto: 0,  semi: 80 },  // NIKAD full auto — email
 };
+
+// ── Učitaj naučene pragove iz neural_weights ────────────────────
+// Vraća CONFIDENCE_THRESHOLDS sa zamjenom vrijednosti koje je Neural Engine podesio.
+async function loadLearnedThresholds(db) {
+  try {
+    const snap = await db.collection("neural_weights").doc("action_confidence").get();
+    if (!snap.exists) return CONFIDENCE_THRESHOLDS;
+    const learned = snap.data().thresholds || {};
+    // Merge: za svaku akciju zamijeni .auto i .semi ako postoje learned vrijednosti
+    const merged = { ...CONFIDENCE_THRESHOLDS };
+    for (const [action, th] of Object.entries(merged)) {
+      const autoKey = `${action}.auto`;
+      const semiKey = `${action}.semi`;
+      if (learned[autoKey] !== undefined) {
+        merged[action] = { ...merged[action], auto: learned[autoKey] };
+      }
+      if (learned[semiKey] !== undefined) {
+        merged[action] = { ...merged[action], semi: learned[semiKey] };
+      }
+    }
+    return merged;
+  } catch {
+    return CONFIDENCE_THRESHOLDS; // fallback na statičke pragove
+  }
+}
+
+// ── Učitaj Neural State za kontekst prompta ─────────────────────
+async function loadNeuralState(db) {
+  try {
+    const snap = await db.collection("neural_state").doc("current").get();
+    return snap.exists ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
 
 // VIP kupci — uvek SEMI (čeka odobrenje, bez obzira na confidence)
 const VIP_CUSTOMERS = ['HBIS', 'ArcelorMittal', 'Lafarge', 'INA', 'Makstil', 'Metalfer', 'Talum'];
@@ -47,13 +84,15 @@ function initAll() {
 }
 
 // ── Chain-of-Thought analiza jednog dokumenta ───────────────────
-async function analyzeDoc(doc) {
+async function analyzeDoc(doc, neuralState = null) {
   // Lego prompt builder — 55% manji prompt, isti rezultat
+  // + Neural State block: agent vidi cijelu operativnu sliku (Delta SOP)
   const systemPrompt = buildAnvilPrompt({
     docType: doc.docType || "unknown",
     customer: doc.customer || "",
     actionMode: "full",
     additionalContext: `Fajl: ${doc.fileName}\nOd: ${doc.from}\nSubject: ${doc.subject}\nIznos: ${doc.amount ? doc.amount + " " + (doc.currency || "EUR") : "nije naveden"}\nRef: ${doc.invoiceNo || "N/A"}\nConfidence: ${doc.confidence || "?"}%`,
+    neuralState,
   });
   const userPrompt = `Analiziraj ovaj poslovni dokument i odluči šta tačno treba uraditi:
 
@@ -72,9 +111,10 @@ Subject: ${doc.subject}`;
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 600,
-      messages: [{ role: 'user', content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
     }),
   });
   
@@ -88,10 +128,10 @@ Subject: ${doc.subject}`;
 }
 
 // ── Odluka: auto ili semi ───────────────────────────────────────
-function decideMode(doc, analysis) {
+function decideMode(doc, analysis, effectiveThresholds = CONFIDENCE_THRESHOLDS) {
   const action = analysis.action;
   const conf   = analysis.confidence || 0;
-  const th     = CONFIDENCE_THRESHOLDS[action] || { auto: 95, semi: 80 };
+  const th     = effectiveThresholds[action] || { auto: 95, semi: 80 };
   
   // Nikad auto za createQuote i sendFollowup
   if (th.auto === 0) return 'semi';
@@ -224,6 +264,12 @@ export default async function handler(req, res) {
   const { db, gmail } = initAll();
   const stats = { analyzed: 0, auto: 0, semi: 0, manual: 0, errors: 0, duplicates: 0 };
 
+  // Load learned thresholds + neural state in parallel (non-blocking if unavailable)
+  const [effectiveThresholds, neuralState] = await Promise.all([
+    loadLearnedThresholds(db),
+    loadNeuralState(db),
+  ]);
+
   try {
     // ── 1. Feedback loop ───────────────────────────────────────
     const sent = await checkDraftFeedback(db, gmail);
@@ -252,9 +298,9 @@ export default async function handler(req, res) {
           continue;
         }
 
-        // Chain-of-thought analiza
-        const analysis = await analyzeDoc(doc);
-        const mode = decideMode(doc, analysis);
+        // Chain-of-thought analiza (sa neural state kontekstom)
+        const analysis = await analyzeDoc(doc, neuralState);
+        const mode = decideMode(doc, analysis, effectiveThresholds);
         
         stats.analyzed++;
         stats[mode]++;

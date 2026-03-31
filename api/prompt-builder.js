@@ -162,8 +162,27 @@ Odgovor: {"results": [{"id": "...", "action": "...", "priority": "...", "confide
 Budi efikasan — kratke reasoning poruke.`,
 };
 
+// ── NEURAL STATE BLOCK — injects SOP into any agent call ────────
+// Delta principle: agent decisions are informed by the full operational picture
+export function buildNeuralStateBlock(neuralState) {
+  if (!neuralState) return "";
+  const s = neuralState;
+  const lines = [
+    `NEURAL ENGINE STATUS (${new Date().toISOString().slice(0, 10)}):`,
+    `Health: ${(s.health || "unknown").toUpperCase()}`,
+    `Pipeline: ${s.pipeline?.activeCount ?? 0} aktivnih, €${Math.round((s.pipeline?.totalValue || 0) / 1000)}k, ${s.pipeline?.stuckCount ?? 0} zaglavljenih`,
+    `Agent: ${Math.round((s.agent?.autoRate || 0) * 100)}% auto-rate, ${s.agent?.pendingApprovals ?? 0} čeka odobrenje`,
+    `Kupci: ${s.customers?.atRiskCount ?? 0} na riziku, ${s.customers?.dormantCount ?? 0} dormantnih`,
+    `AI tačnost: ${Math.round((s.selfLearn?.accuracy || 0) * 100)}% (${s.selfLearn?.totalPredictions ?? 0} predikcija)`,
+  ];
+  if (s.insights?.[0]) {
+    lines.push(`Najvažniji signal: ${s.insights[0].message}`);
+  }
+  return lines.join("\n");
+}
+
 // ── MAIN ASSEMBLER ───────────────────────────────────────────────
-export function buildAnvilPrompt({ docType, customer, actionMode = "full", additionalContext = "" }) {
+export function buildAnvilPrompt({ docType, customer, actionMode = "full", additionalContext = "", neuralState = null }) {
   const parts = [];
 
   // 1. BASE — uvijek prisutan
@@ -189,7 +208,14 @@ export function buildAnvilPrompt({ docType, customer, actionMode = "full", addit
   const actionPrompt = ACTIONS[actionMode] || ACTIONS.full;
   parts.push(actionPrompt);
 
-  // 5. ADDITIONAL CONTEXT — pipeline stanje, prethodni dokumenti, itd.
+  // 5. NEURAL STATE — kontekst cijelog sistema (ako dostupan)
+  // Lego brick: plugs in the SOP so agent sees the full operational picture
+  const neuralBlock = buildNeuralStateBlock(neuralState);
+  if (neuralBlock) {
+    parts.push(`SISTEM KONTEKST (Neural Engine):\n${neuralBlock}`);
+  }
+
+  // 6. ADDITIONAL CONTEXT — pipeline stanje, prethodni dokumenti, itd.
   if (additionalContext) {
     parts.push(`DODATNI KONTEKST:\n${additionalContext}`);
   }
@@ -202,5 +228,5 @@ export function estimateTokens(text) {
   return Math.round(text.length / 4); // rough estimate: 4 chars per token
 }
 
-// ── EXPORT za agent-orchestrator.js ─────────────────────────────
-export default { buildAnvilPrompt, estimateTokens, DOC_TYPES, CUSTOMER_PROFILES };
+// ── EXPORT ──────────────────────────────────────────────────────
+export default { buildAnvilPrompt, buildNeuralStateBlock, estimateTokens, DOC_TYPES, CUSTOMER_PROFILES };

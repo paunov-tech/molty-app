@@ -132,7 +132,7 @@ FORMAT (Markdown):
 *Generisano: [datum vreme] | ANVIL AI Agent v4 | Sledeći brifing: [sutra]*`;
 
   const msg = await anthropic.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-opus-4-6",
     max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
   });

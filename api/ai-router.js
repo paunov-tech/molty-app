@@ -14,7 +14,7 @@ const GEMINI_KEY    = process.env.GEMINI_API_KEY;  // ← dodati u Vercel env
 
 // ── Model konfiguracija ─────────────────────────────────────────
 const MODELS = {
-  claude_sonnet:  "claude-sonnet-4-20250514",
+  claude_sonnet:  "claude-sonnet-4-6",
   gemini_flash:   "gemini-2.0-flash-exp",
   gemini_pro:     "gemini-1.5-pro",
 };

@@ -40,8 +40,12 @@ export default async function handler(req, res) {
   if (!key) return res.status(500).json({ error: "AI proxy not configured" });
 
   try {
-    const { messages, system, max_tokens = 1000, model = "claude-sonnet-4-20250514" } = req.body || {};
+    const { messages, system, max_tokens = 1000, model: reqModel } = req.body || {};
     if (!messages?.length) return res.status(400).json({ error: "messages required" });
+
+    // Whitelist — prevent clients from escalating to arbitrary/expensive models
+    const ALLOWED_MODELS = new Set(["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6"]);
+    const model = ALLOWED_MODELS.has(reqModel) ? reqModel : "claude-sonnet-4-6";
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

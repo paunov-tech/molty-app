@@ -15,6 +15,14 @@
     {
       "path": "/api/drive-sync",
       "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/anomaly-detect",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/neural-engine",
+      "schedule": "0 * * * *"
     }
   ]
 }
