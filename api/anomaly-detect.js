@@ -154,12 +154,18 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── 5. Deduplicate — skip if same type+customer already reported in last 7 days ──
+    // ── 5. Deduplicate — single-field query on detectedAt, filter type in JS ──
+    const anomalyTypes = new Set(["no_recent_order", "revenue_drop", "revenue_growth", "stale_pipeline"]);
     const recentSnap = await db.collection("brain_insights")
-      .where("type", "in", ["no_recent_order", "revenue_drop", "revenue_growth", "stale_pipeline"])
       .where("detectedAt", ">=", new Date(now - 7 * day))
+      .limit(500)
       .get();
-    const recentKeys = new Set(recentSnap.docs.map(d => `${d.data().type}::${d.data().customer}`));
+    const recentKeys = new Set(
+      recentSnap.docs
+        .map(d => d.data())
+        .filter(d => anomalyTypes.has(d.type))
+        .map(d => `${d.type}::${d.customer}`)
+    );
 
     const newAnomalies = anomalies.filter(a => !recentKeys.has(`${a.type}::${a.customer}`));
 

@@ -121,19 +121,16 @@ async function getAgentStats(db) {
 // ── Phase 2c: Customer risk ──────────────────────────────────────
 async function getCustomerRisk(db) {
   try {
+    // Single-field query on resolved, filter type in JS
     const riskSnap = await db.collection("brain_insights")
       .where("resolved", "==", false)
-      .where("type", "in", ["no_recent_order", "revenue_drop"])
+      .limit(200)
       .get();
-    const riskCustomers = [...new Set(riskSnap.docs.map(d => d.data().customer).filter(Boolean))];
-    const dormant = riskSnap.docs.filter(d => d.data().type === "no_recent_order").map(d => d.data().customer).filter(Boolean);
-
-    const growthSnap = await db.collection("brain_insights")
-      .where("resolved", "==", false)
-      .where("type", "==", "revenue_growth")
-      .limit(5)
-      .get();
-    const growthSignals = growthSnap.docs.map(d => d.data().customer).filter(Boolean);
+    const allUnresolved = riskSnap.docs.map(d => d.data());
+    const riskDocs = allUnresolved.filter(d => d.type === "no_recent_order" || d.type === "revenue_drop");
+    const riskCustomers = [...new Set(riskDocs.map(d => d.customer).filter(Boolean))];
+    const dormant = riskDocs.filter(d => d.type === "no_recent_order").map(d => d.customer).filter(Boolean);
+    const growthSignals = allUnresolved.filter(d => d.type === "revenue_growth").map(d => d.customer).filter(Boolean).slice(0, 5);
 
     // Top customer by revenue (last 90d invoices)
     let topCustomer = null;
@@ -278,26 +275,23 @@ async function selfLearn(db) {
   // Measure accuracy: auto-processed docs with no subsequent agent_error
   let totalAuto = 0, errorCount = 0, recentTotal = 0, recentErrors = 0;
   try {
+    // Single-field range on updatedAt, filter agentMode+agentExecuted in JS
     const autoSnap = await db.collection("docworker")
-      .where("agentMode", "==", "auto")
-      .where("agentExecuted", "==", true)
       .where("updatedAt", ">=", new Date(now - 30 * day))
       .orderBy("updatedAt", "desc")
-      .limit(300)
+      .limit(500)
       .get();
-    const autoDocs = autoSnap.docs.map(d => d.data());
+    const allDocs = autoSnap.docs.map(d => d.data());
+    const autoDocs = allDocs.filter(d => d.agentMode === "auto" && d.agentExecuted === true);
     totalAuto = autoDocs.length;
     errorCount = autoDocs.filter(d => d.status === "agent_error" || d.agentError).length;
 
-    // 7d window
-    const recentSnap = await db.collection("docworker")
-      .where("agentMode", "==", "auto")
-      .where("agentExecuted", "==", true)
-      .where("updatedAt", ">=", new Date(now - 7 * day))
-      .orderBy("updatedAt", "desc")
-      .limit(100)
-      .get();
-    const recent = recentSnap.docs.map(d => d.data());
+    // 7d window — filter from same result set
+    const cutoff7d = now - 7 * day;
+    const recent = autoDocs.filter(d => {
+      const t = d.updatedAt?.toMillis?.() || new Date(d.updatedAt).getTime();
+      return t >= cutoff7d;
+    });
     recentTotal = recent.length;
     recentErrors = recent.filter(d => d.status === "agent_error" || d.agentError).length;
   } catch { /* no data yet — default to 1.0 */ }
@@ -352,16 +346,19 @@ export default async function handler(req, res) {
   try {
     // ═══════════════════════════════════════════════
     // PHASE 1 — INGEST
-    // Consume unprocessed neural_events from all modules.
-    // Mark processed to prevent re-ingestion.
+    // Single-field query (no composite index needed):
+    // fetch last 2h by ts, filter processed=false in JS.
     // ═══════════════════════════════════════════════
     const evSnap = await db.collection("neural_events")
-      .where("processed", "==", false)
+      .where("ts", ">=", new Date(Date.now() - 2 * 3600000))
       .orderBy("ts", "asc")
       .limit(500)
       .get();
 
-    const events = evSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Filter unprocessed in JS — avoids composite index on (processed, ts)
+    const events = evSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => !e.processed);
 
     // Mark as processed (batch, max 500 = Firestore limit)
     if (events.length > 0) {
@@ -388,11 +385,14 @@ export default async function handler(req, res) {
     // Count active unresolved anomalies
     let anomalyCount = 0;
     try {
+      // reuse allUnresolved from getCustomerRisk — but that's in a different scope,
+      // so query with single-field filter and count in JS
       const anomSnap = await db.collection("brain_insights")
         .where("resolved", "==", false)
-        .where("type", "in", ["no_recent_order", "revenue_drop", "stale_pipeline"])
+        .limit(200)
         .get();
-      anomalyCount = anomSnap.size;
+      const anomalyTypes = new Set(["no_recent_order", "revenue_drop", "stale_pipeline"]);
+      anomalyCount = anomSnap.docs.filter(d => anomalyTypes.has(d.data().type)).length;
     } catch {}
 
     // ═══════════════════════════════════════════════
