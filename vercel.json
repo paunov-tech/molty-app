@@ -31,6 +31,14 @@
     {
       "path": "/api/auto-file",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/doc-router",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/auto-draft",
+      "schedule": "*/30 * * * *"
     }
   ]
 }
