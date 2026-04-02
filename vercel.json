@@ -23,6 +23,14 @@
     {
       "path": "/api/neural-engine",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/gmail-sync",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/auto-file",
+      "schedule": "0 * * * *"
     }
   ]
 }

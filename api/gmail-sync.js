@@ -128,7 +128,6 @@ export default async function handler(req, res) {
         const attRes = await gmail.users.messages.attachments.get({
           userId: 'me', messageId: id, id: part.body.attachmentId,
         });
-        const fileBuffer = Buffer.from(attRes.data.data, 'base64');
         // Gmail vraća base64url — konvertuj u standardni base64 za Anthropic
         const pdfBase64 = attRes.data.data.replace(/-/g, '+').replace(/_/g, '/');
 
@@ -204,7 +203,8 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
 
         // 7. Pripremi za strukturirani upload (auto-file.js)
         const fileName = `${new Date().toISOString().slice(0,10)}_email_${part.filename}`;
-        const attachmentB64 = fileBuffer.toString('base64');
+        // attachmentB64 se NE čuva u Firestore — Firestore limit je 1MB.
+        // auto-file.js preuzima PDF iz Gmaila koristeći gmailId + filename.
 
         // 8. Upiši u Firestore — driveStatus:'pending', auto-file.js uploaduje u COMMERCIAL/[Kupac]/[God]/[Tip]
         const customerName = typeof parsed.customer === 'object' ? parsed.customer?.name : parsed.customer;
@@ -212,7 +212,6 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           fileName,
           driveId: null,
           driveStatus: 'pending',
-          attachmentB64,
           gmailId: id,
           source: 'gmail',
           from: meta.from,
