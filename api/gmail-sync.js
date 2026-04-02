@@ -217,7 +217,7 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           from: meta.from,
           subject: meta.subject,
           date: meta.date,
-          status: 'new',
+          status: 'review',
           docType: parsed.type || 'unknown',
           customer: customerName || null,
           customerCountry: parsed.customer?.country || null,
