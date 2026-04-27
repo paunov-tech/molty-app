@@ -12,6 +12,7 @@
 import { google } from 'googleapis';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { findOrCreateClientFolder } from '../lib/clientFolderResolver.js';
 
 const COMMERCIAL_FOLDER = process.env.COMMERCIAL_FOLDER_ID || '1zsDeckOseY0gMerBHU8nG0p-qKXDV8bN';
 
@@ -98,11 +99,16 @@ async function getTargetFolder(drive, doc) {
   const typeFolder = TYPE_FOLDER[doc.docType] || 'Ostalo';
 
   // COMMERCIAL / [Kupac] / [Godina] / [Tip]
-  const customerFolderId = await getOrCreate(drive, COMMERCIAL_FOLDER, customer);
+  // Customer folder: alias + fuzzy match resolver (sprečava duplikate)
+  const customerFolder = await findOrCreateClientFolder(drive, customer, COMMERCIAL_FOLDER);
+  if (customerFolder.source === 'created') {
+    console.warn(`[auto-file] Worker je morao da kreira novi folder za "${customer}" — razmotri dodavanje aliasa.`);
+  }
+  const customerFolderId = customerFolder.id;
   const yearFolderId     = await getOrCreate(drive, customerFolderId, year);
   const typeFolderId     = await getOrCreate(drive, yearFolderId, typeFolder);
-  
-  return { folderId: typeFolderId, path: `${customer}/${year}/${typeFolder}` };
+
+  return { folderId: typeFolderId, path: `${customerFolder.name}/${year}/${typeFolder}` };
 }
 
 // Upload buffer na Drive u pravu strukturu
