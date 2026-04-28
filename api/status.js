@@ -1,20 +1,12 @@
 // api/status.js — ANVIL™ Worker Health Check
-// Deploy: cp ~/api-status-endpoint.js ~/molty-app/api/status.js
+// Public health endpoint — no auth required.
+// Returns only non-sensitive info (platform name, uptime, cron list, env presence flags).
+// VIGIL workflow on Hetzner n8n probes this every 10 min.
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Authorization, x-api-key, Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
-
-  // Auth check (podržava oba formata)
-  const secret = process.env.CRON_SECRET || "";
-  const authHeader = req.headers["authorization"]?.replace("Bearer ", "") || "";
-  const apiKey = req.headers["x-api-key"] || "";
-
-  if (secret && authHeader !== secret && apiKey !== secret) {
-    return res.status(401).json({ connected: false, error: "Unauthorized" });
-  }
 
   // Proveri endpoint-e
   const endpoints = [
