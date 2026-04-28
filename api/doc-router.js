@@ -121,17 +121,21 @@ export default async function handler(req, res) {
   const db = getFirestore();
 
   // Uzmi sve nerutirane, business-relevantne dokumente (limit 30 po pozivu)
+  // Single-field query + JS filter — izbegava Firestore composite index na (routed, isBusinessRelevant).
+  // Inequality '!=' + equality '==' u istom queryju traži composite index koji nije deploy-ovan.
   const snap = await db.collection('docworker')
-    .where('routed', '!=', true)
     .where('isBusinessRelevant', '==', true)
-    .limit(30)
+    .limit(100)
     .get();
 
   if (snap.empty) return res.json({ ok: true, processed: 0 });
 
-  const results = { quoted: 0, invoiced: 0, filed: 0, tds: 0, escalated: 0, errors: [] };
+  const unroutedDocs = snap.docs.filter(d => d.data().routed !== true).slice(0, 30);
+  if (unroutedDocs.length === 0) return res.json({ ok: true, processed: 0, scanned: snap.size });
 
-  for (const docSnap of snap.docs) {
+  const results = { quoted: 0, invoiced: 0, filed: 0, tds: 0, escalated: 0, errors: [], scanned: snap.size };
+
+  for (const docSnap of unroutedDocs) {
     const doc = { id: docSnap.id, ...docSnap.data() };
     const type = doc.docType || 'unknown';
     const update = { routed: true, routedAt: new Date().toISOString() };
