@@ -13,10 +13,6 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/drive-sync",
-      "schedule": "0 */2 * * *"
-    },
-    {
       "path": "/api/anomaly-detect",
       "schedule": "0 7 * * *"
     },

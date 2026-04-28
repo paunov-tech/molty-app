@@ -5,7 +5,7 @@
 // Deploy: molty-worker (Vercel) → api/morning-brief.js
 // ═══════════════════════════════════════════════════════════════
 
-import { initializeApp, getApps } from "firebase-admin/app";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
@@ -13,9 +13,7 @@ import { google } from "googleapis";
 // ── Firebase init ──────────────────────────────────────────────
 if (!getApps().length) {
   initializeApp({
-    credential: require("firebase-admin/app").cert(
-      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    ),
+    credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
   });
 }
 const db = getFirestore();
