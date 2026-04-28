@@ -60,13 +60,19 @@ async function getPipelines() {
 
 // ── Čitaj install jobs ────────────────────────────────────────
 async function getActiveJobs() {
+  // Single-field orderBy + JS filter — izbegava composite index na (status, _updatedAt)
+  // Ranije je bio .where("status","in",[...]).orderBy("_updatedAt") koji je pucao i try/catch
+  // ga je gutao → install jobs su uvek bili prazni u briefingu.
   try {
     const snap = await db.collection("install_workflows")
-      .where("status", "in", ["active", "in_progress", "pending"])
       .orderBy("_updatedAt", "desc")
-      .limit(20)
+      .limit(60)
       .get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const ACTIVE = new Set(["active", "in_progress", "pending"]);
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(d => ACTIVE.has(d.status))
+      .slice(0, 20);
   } catch { return []; }
 }
 
