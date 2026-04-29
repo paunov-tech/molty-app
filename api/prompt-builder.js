@@ -229,4 +229,13 @@ export function estimateTokens(text) {
 }
 
 // ── EXPORT ──────────────────────────────────────────────────────
-export default { buildAnvilPrompt, buildNeuralStateBlock, estimateTokens, DOC_TYPES, CUSTOMER_PROFILES };
+// Vercel routira sve api/*.js kao endpoint — bez handler-a Vercel pokušava
+// da pozove default export kao funkciju (objekat → TypeError → 500). Stub
+// drži endpoint zdravim; library se deli kroz named exports + agent-
+// orchestrator import-uje direktno.
+export default async function handler(_req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  return res.status(410).json({
+    error: 'Not a route — internal lego prompt library. Use named exports.',
+  });
+}

@@ -10,16 +10,32 @@ import { getFirestore } from "firebase-admin/firestore";
 import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
 
-// ── Firebase init ──────────────────────────────────────────────
-if (!getApps().length) {
+// ── Firebase init (lazy — ne crashuj cold start ako env fali) ──
+function initAdmin() {
+  if (getApps().length > 0) return;
+  // Konzistentno sa ostalim endpointima (gmail-sync, agent-orchestrator, ...).
+  // Stari kod je koristio FIREBASE_SERVICE_ACCOUNT (JSON.parse na undefined →
+  // module-level crash → 500 FUNCTION_INVOCATION_FAILED pre handler-a).
   initializeApp({
-    credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)),
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID || 'molty-portal',
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+    }),
   });
 }
-const db = getFirestore();
+let _db = null;
+function getDb() {
+  if (!_db) { initAdmin(); _db = getFirestore(); }
+  return _db;
+}
 
-// ── Anthropic ──────────────────────────────────────────────────
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ── Anthropic (lazy) ──────────────────────────────────────────
+let _anthropic = null;
+function getAnthropic() {
+  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return _anthropic;
+}
 
 // ── Gmail OAuth2 ───────────────────────────────────────────────
 function getGmailClient() {
@@ -39,7 +55,7 @@ const SENDER    = "paunov@calderyserbia.com";
 // ── Čitaj DocCenter emailove iz Firestore ─────────────────────
 async function getRecentDocs(days = 7) {
   const cutoff = new Date(Date.now() - days * 86400000);
-  const snap = await db.collection("docworker")
+  const snap = await getDb().collection("docworker")
     .where("processedAt", ">=", cutoff)
     .orderBy("processedAt", "desc")
     .limit(50)
@@ -50,7 +66,7 @@ async function getRecentDocs(days = 7) {
 // ── Čitaj pipeline iz Firestore ───────────────────────────────
 async function getPipelines() {
   try {
-    const snap = await db.collection("pipelines")
+    const snap = await getDb().collection("pipelines")
       .orderBy("updatedAt", "desc")
       .limit(30)
       .get();
@@ -64,7 +80,7 @@ async function getActiveJobs() {
   // Ranije je bio .where("status","in",[...]).orderBy("_updatedAt") koji je pucao i try/catch
   // ga je gutao → install jobs su uvek bili prazni u briefingu.
   try {
-    const snap = await db.collection("install_workflows")
+    const snap = await getDb().collection("install_workflows")
       .orderBy("_updatedAt", "desc")
       .limit(60)
       .get();
@@ -135,7 +151,7 @@ FORMAT (Markdown):
 
 *Generisano: [datum vreme] | ANVIL AI Agent v4 | Sledeći brifing: [sutra]*`;
 
-  const msg = await anthropic.messages.create({
+  const msg = await getAnthropic().messages.create({
     model: "claude-opus-4-6",
     max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
@@ -210,7 +226,7 @@ async function sendEmail(subject, bodyMd) {
 
 // ── Sačuvaj u Firestore ───────────────────────────────────────
 async function saveBriefing(text, date) {
-  await db.collection("morning_brief").doc("latest").set({
+  await getDb().collection("morning_brief").doc("latest").set({
     text,
     date,
     generatedAt: new Date(),
