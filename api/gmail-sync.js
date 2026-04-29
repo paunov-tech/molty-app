@@ -32,6 +32,17 @@ function initAdmin() {
   }) });
 }
 
+// Calderys grupa + naša firma — UVEK supplier, nikad customer.
+// Bug #3 (Calderys Deutschland kao klijent) + Bug #4 (SIAL kao samokupac).
+const SUPPLIER_BLOCKLIST = [
+  'calderys', 'sial consulting', 'sial d.o.o.', 'sial doo',
+];
+function isSupplier(name) {
+  if (!name) return false;
+  const n = String(name).toLowerCase();
+  return SUPPLIER_BLOCKLIST.some(s => n.includes(s));
+}
+
 // Filter — koji emailovi su relevantni
 function isRelevant(msg) {
   const from = (msg.from || '').toLowerCase();
@@ -136,9 +147,16 @@ export default async function handler(req, res) {
         try {
           const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
           const prompt = `Analiziraj ovaj poslovni dokument iz industrije vatrostalnih materijala (Calderys).
+
+EMAIL KONTEKST (koristi za fallback ako u PDF-u nije eksplicitno):
+- Subject: ${meta.subject || '(nepoznat)'}
+- From: ${meta.from || '(nepoznat)'}
+
 KONTEKST: Calderys je dobavljač vatrostalnih materijala. Kupac je firma kojoj se šalje dokument.
 - Faktura/Ponuda/OC: kupac je "Bill To", "Sold To", "Company", "Quotation For", "To:", adresa primaoca
 - Calderys varijante su UVEK supplier: Calderys Austria, Calderys DE, Calderys Deutschland, SIAL
+- Ako u PDF-u nije naveden kupac, izvuci ga iz subject-a ili sender domain-a (npr. "@hbis.com" → HBIS Group)
+- "material" polje je naziv vatrostalne mase (CALDE, SILICA MIX, ...) — NIKAD ne stavljaj ime kupca u "material"
 - Za svaku stavku u tabeli izvuci: SAP kod (broj pozicije/materijala), naziv materijala, količinu, jedinicu, cenu, ukupno
 - Materijali počinju sa: CALDE, SILICA MIX, PLAST, PLICAST, ALKON, PORIT, OPAL, ERMAG, ERSPIN
 - totalAmount je NET amount ili Total (bez VAT ako je posebno navedeno)
@@ -206,8 +224,38 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
         // attachmentB64 se NE čuva u Firestore — Firestore limit je 1MB.
         // auto-file.js preuzima PDF iz Gmaila koristeći gmailId + filename.
 
-        // 8. Upiši u Firestore — driveStatus:'pending', auto-file.js uploaduje u COMMERCIAL/[Kupac]/[God]/[Tip]
-        const customerName = typeof parsed.customer === 'object' ? parsed.customer?.name : parsed.customer;
+        // 8. Post-AI validacija — guard rails za Bug #1, #3, #4.
+        let customerName = typeof parsed.customer === 'object' ? parsed.customer?.name : parsed.customer;
+        let customerCountry = parsed.customer?.country || null;
+        let cleanItems = Array.isArray(parsed.items) ? parsed.items : [];
+
+        // #3/#4: ako AI ipak vrati supplier-a kao kupca, briši — ne tretiraj kao customer.
+        if (isSupplier(customerName)) {
+          customerName = null;
+          customerCountry = null;
+        }
+
+        // #1: ne dozvoli da ime kupca procuri u listu materijala (parser zbunjuje table layout).
+        if (customerName) {
+          const cn = String(customerName).toLowerCase();
+          cleanItems = cleanItems.filter(it => {
+            const m = String(it?.material || '').toLowerCase();
+            return m && m !== cn && !m.includes(cn);
+          });
+        }
+        // Pribij i one stavke gde je material prazan ili je čista email/adresa.
+        cleanItems = cleanItems.filter(it => {
+          const m = String(it?.material || '').trim();
+          return m && !m.includes('@');
+        });
+
+        // #2: auto-verify ako AI je siguran i kompletan (≥90 confidence + customer + barem 1 stavka).
+        const autoVerify =
+          (parsed.confidence || 0) >= 90 &&
+          !!customerName &&
+          cleanItems.length > 0;
+
+        // 9. Upiši u Firestore — driveStatus:'pending', auto-file.js uploaduje u COMMERCIAL/[Kupac]/[God]/[Tip]
         await db.collection('docworker').add({
           fileName,
           driveId: null,
@@ -217,20 +265,20 @@ Odgovori SAMO JSON bez ikakvog dodatnog teksta:
           from: meta.from,
           subject: meta.subject,
           date: meta.date,
-          status: 'review',
+          status: autoVerify ? 'verified' : 'review',
           docType: parsed.type || 'unknown',
           customer: customerName || null,
-          customerCountry: parsed.customer?.country || null,
+          customerCountry,
           invoiceNo: parsed.documentNumber || null,
           amount: parsed.totalAmount || null,
           currency: parsed.currency || 'EUR',
-          items: parsed.items || [],
+          items: cleanItems,
           confidence: parsed.confidence || null,
           reasoning: parsed.reasoning || null,
           isBusinessRelevant: parsed.isBusinessRelevant !== false,
           timestamp: new Date(),
         });
-        results.push({ file: fileName, driveId: null, docType: parsed.type, customer: customerName });
+        results.push({ file: fileName, driveId: null, docType: parsed.type, customer: customerName, autoVerify });
       }
 
       // 9. Označi email kao obrađen — dodaj MOLTY-processed label

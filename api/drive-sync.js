@@ -261,8 +261,18 @@ async function tdsFiles() {
 
 // ── Handler ──
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ success: false, error: 'GET only' });
+
+  // Auth — endpoint vraća strukturu Drive foldera, ne sme biti public.
+  const secret = (req.headers.authorization || '').replace('Bearer ', '');
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
   const { mode } = req.query;
   try {
     let result;
