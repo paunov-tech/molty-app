@@ -7,7 +7,6 @@
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
 
 // ── Firebase init (lazy — ne crashuj cold start ako env fali) ──
@@ -30,11 +29,20 @@ function getDb() {
   return _db;
 }
 
-// ── Anthropic (lazy) ──────────────────────────────────────────
-let _anthropic = null;
-function getAnthropic() {
-  if (!_anthropic) _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  return _anthropic;
+// ── Anthropic (raw fetch — paket @anthropic-ai/sdk nije u deps) ──
+async function callClaude({ model, max_tokens, messages, system }) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({ model, max_tokens, messages, ...(system && { system }) }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data;
 }
 
 // ── Gmail OAuth2 ───────────────────────────────────────────────
@@ -151,13 +159,13 @@ FORMAT (Markdown):
 
 *Generisano: [datum vreme] | ANVIL AI Agent v4 | Sledeći brifing: [sutra]*`;
 
-  const msg = await getAnthropic().messages.create({
+  const msg = await callClaude({
     model: "claude-opus-4-6",
     max_tokens: 2000,
     messages: [{ role: "user", content: prompt }],
   });
 
-  return msg.content[0].text;
+  return msg.content?.[0]?.text || "";
 }
 
 // ── Konvertuj Markdown → HTML ──────────────────────────────────
